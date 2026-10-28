@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: etoro-paper-scanner
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT
+    healthCheckPath: /_stcore/health
+    disk:
+      name: scanner-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: ETORO_API_KEY
+        sync: false
+      - key: ETORO_USER_KEY
+        sync: false
+      - key: DATABASE_PATH
+        value: /var/data/scanner.sqlite3
+      - key: POLL_SECONDS
+        value: "15"
+      - key: UNIVERSE_LIMIT
+        value: "100"
