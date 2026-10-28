@@ -23,7 +23,7 @@ A cloud-ready Streamlit starter using eToro's documented Market Data REST API. I
 - Historical depth starts at deployment and builds over time; the 24-hour comparison will not appear until at least 24 hours of observations have accumulated.
 
 ## Universe
-Default watchlist has up to 100 US stocks and ETFs. Set `UNIVERSE_LIMIT` between 20 and 100. Instrument resolution is throttled at about one request/second to respect API limits; first startup may take a couple of minutes. Unsupported instruments are skipped, not assigned invented IDs. Rates are polled in batches of 25.
+Default watchlist starts with 12 crypto assets (24/7 market availability) followed by US stocks and ETFs, with up to 100 symbols total. Set `UNIVERSE_LIMIT` between 20 and 100. Instrument resolution is throttled at about one request/second to respect API limits; first startup may take a couple of minutes. Unsupported instruments are skipped, not assigned invented IDs. Rates are polled in batches of 25.
 
 ## Local test
 ```powershell
@@ -34,3 +34,6 @@ $env:ETORO_API_KEY="your-key"
 $env:ETORO_USER_KEY="your-user-key"
 streamlit run app.py
 ```
+
+## Loading-screen troubleshooting
+The Render start command disables Streamlit CORS and WebSocket compression to help diagnose proxy/WebSocket loading issues. If the page still stays on its loading skeleton, inspect Render runtime logs for the first traceback and verify the service environment variables. Closed US stock markets do not themselves prevent the dashboard page from loading.
