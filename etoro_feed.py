@@ -52,7 +52,7 @@ class EtoroFeed:
         for index, symbol in enumerate(symbols):
             payload = self.get("/market-data/search", {
                 "internalSymbolFull": symbol,
-                "fields": "instrumentId,internalSymbolFull,displayname,marketId,internalAssetClassName,instrumentType",
+                "fields": "instrumentId,internalSymbolFull,displayname,marketId,internalAssetClassName,instrumentType,isCurrentlyTradable,isBuyEnabled,isOpen",
                 "pageSize": 5,
             })
             rows = payload.get("data", payload.get("results", payload.get("items", [])))
@@ -71,6 +71,9 @@ class EtoroFeed:
                         "instrument_id": int(instrument_id),
                         "display_name": row.get("displayname", symbol),
                         "asset_class": str(asset_class),
+                        "is_currently_tradable": row.get("isCurrentlyTradable"),
+                        "is_buy_enabled": row.get("isBuyEnabled"),
+                        "is_open": row.get("isOpen"),
                     }
                     break
             if index < len(symbols) - 1:
@@ -134,5 +137,58 @@ class EtoroFeed:
         if mode == "real":
             path = "/trading/info/portfolio"
         else:
-            path = "/trading/info/demo/portfolio"
+            path = "/trading/info/demo/pnl"
         return self.get(path)
+
+    def _headers(self, request_id=None):
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "x-api-key": self.api,
+            "x-user-key": self.user,
+            "x-request-id": request_id or str(uuid.uuid4()),
+        }
+
+    def place_demo_order(self, order, request_id):
+        url = "https://public-api.etoro.com/api/v2/trading/execution/demo/orders"
+        for attempt in range(3):
+            response = self.session.post(
+                url, headers=self._headers(request_id), json=order, timeout=25
+            )
+            if response.status_code == 429:
+                time.sleep(min(int(response.headers.get("Retry-After", 2 ** attempt)), 60))
+                continue
+            response.raise_for_status()
+            return response.json()
+        raise RuntimeError("Demo order rate limit persisted after retries")
+
+    def lookup_demo_order(self, order_id=None, reference_id=None):
+        if bool(order_id) == bool(reference_id):
+            raise ValueError("Provide exactly one of order_id or reference_id")
+        url = "https://public-api.etoro.com/api/v2/trading/info/demo/orders:lookup"
+        params = {"orderId": order_id} if order_id else {"referenceId": reference_id}
+        response = self.session.get(url, headers=self._headers(), params=params, timeout=25)
+        response.raise_for_status()
+        return response.json()
+
+    def close_demo_position(self, position_id, instrument_id, request_id):
+        url = (
+            BASE + f"/trading/execution/demo/market-close-orders/positions/{int(position_id)}"
+        )
+        response = self.session.post(
+            url,
+            headers=self._headers(request_id),
+            json={"InstrumentID": int(instrument_id)},
+            timeout=25,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def cancel_demo_order(self, order_id, request_id):
+        url = (
+            "https://public-api.etoro.com/api/v2/trading/execution/demo/orders/"
+            + str(int(order_id))
+        )
+        response = self.session.delete(url, headers=self._headers(request_id), timeout=25)
+        response.raise_for_status()
+        return response.json() if response.content else {}
