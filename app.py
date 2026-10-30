@@ -21,7 +21,7 @@ if MODE not in {"demo", "real"}:
     MODE = "demo"
 CANDLE_REFRESH_SECONDS = max(900, int(os.getenv("ANALYSIS_REFRESH_SECONDS", "1800")))
 PORTFOLIO_REFRESH_SECONDS = max(60, int(os.getenv("PORTFOLIO_REFRESH_SECONDS", "300")))
-CANDLES_PER_CYCLE = max(1, min(10, int(os.getenv("CANDLES_PER_CYCLE", "3"))))
+CANDLES_PER_CYCLE = max(1, min(10, int(os.getenv("CANDLES_PER_CYCLE", "10"))))
 RISK_PER_TRADE_PCT = max(0.0, float(os.getenv("RISK_PER_TRADE_PCT", "0.5")))
 MAX_POSITION_PCT = max(0.0, float(os.getenv("MAX_POSITION_PCT", "5")))
 
@@ -342,7 +342,7 @@ with signals_tab:
         "Signals are rule outputs, not guaranteed outcomes."
     )
     if analyses.empty:
-        st.info("Historical candles are being loaded gradually. Initial coverage can take a few minutes.")
+        st.info("Historical candles are being loaded gradually. Initial coverage for 100 symbols can take around ten minutes.")
     else:
         records = []
         for _, row in analyses.iterrows():
