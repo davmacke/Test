@@ -11,6 +11,7 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from analysis import analyze_candles, portfolio_risk
+from demo_trader import run_demo_cycle
 from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS
 
 DB = Path(os.getenv("DATABASE_PATH", "scanner.sqlite3"))
@@ -70,6 +71,27 @@ def connect():
             id INTEGER PRIMARY KEY, ts TEXT, level TEXT, message TEXT
         )
     """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS demo_bot_state(
+            id INTEGER PRIMARY KEY CHECK(id=1), started_at TEXT, ends_at TEXT,
+            status TEXT, start_unrealized_pnl REAL, last_unrealized_pnl REAL,
+            start_realized_pnl REAL, last_realized_pnl REAL, stop_reason TEXT
+        )
+    """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS demo_bot_orders(
+            id INTEGER PRIMARY KEY, symbol TEXT, instrument_id INTEGER,
+            request_id TEXT UNIQUE, order_id INTEGER, action TEXT, status TEXT,
+            amount_usd REAL, entry_price REAL, stop_rate REAL, target_rate REAL,
+            position_id INTEGER, units REAL, pnl REAL, close_order_id INTEGER,
+            created_at TEXT, updated_at TEXT, message TEXT
+        )
+    """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS demo_bot_snapshot(
+            id INTEGER PRIMARY KEY CHECK(id=1), fetched_at TEXT, payload TEXT
+        )
+    """)
     connection.commit()
     return connection
 
@@ -93,7 +115,7 @@ def load_mapping(cache_path, feed):
     wanted = DEFAULT_SYMBOLS[:LIMIT]
     missing = [
         symbol for symbol in wanted
-        if symbol not in mapping or not mapping[symbol].get("asset_class")
+        if symbol not in mapping or not mapping[symbol].get("asset_class") or "is_currently_tradable" not in mapping[symbol]
     ]
     if missing:
         mapping.update(feed.resolve_symbols(missing))
@@ -243,6 +265,14 @@ def refresh_once():
             connection, feed, mapping, latest_prices,
             risk["estimated_account_value_usd"],
         )
+        def bot_log(level, message):
+            log(connection, level, message)
+        demo_status = run_demo_cycle(connection, feed, mapping, quotes, portfolio, bot_log)
+        connection.execute(
+            "INSERT OR REPLACE INTO demo_bot_snapshot(id,fetched_at,payload) VALUES(1,?,?)",
+            (datetime.now(timezone.utc).isoformat(), json.dumps(demo_status)),
+        )
+        connection.commit()
         log(connection, "INFO", f"Fetched {len(quotes)} rate snapshots and updated market/risk analysis")
     except Exception as error:
         log(connection, "ERROR", f"{type(error).__name__}: {error}")
@@ -291,6 +321,14 @@ try:
     portfolio_row = connection.execute(
         "SELECT fetched_at,mode,status,payload FROM portfolio_cache WHERE id=1"
     ).fetchone()
+    demo_row = connection.execute(
+        "SELECT fetched_at,payload FROM demo_bot_snapshot WHERE id=1"
+    ).fetchone()
+    demo_orders = pd.read_sql_query(
+        "SELECT symbol,action,status,amount_usd,entry_price,stop_rate,target_rate,pnl,message,created_at "
+        "FROM demo_bot_orders ORDER BY id DESC",
+        connection,
+    )
 finally:
     connection.close()
 
@@ -330,8 +368,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot"]
 )
 
 with signals_tab:
@@ -482,3 +520,35 @@ with feed_tab:
         )
     st.markdown("**Recent service events**")
     st.dataframe(events, use_container_width=True, hide_index=True)
+
+with bot_tab:
+    st.subheader("Demo-only overnight run")
+    st.caption(
+        "Execution is hard-locked to eToro's demo order endpoint. The bot is long-only, 1x leverage, "
+        "up to 5 entries, up to 50 USD per entry, and stops after 8 hours. Each entry carries a broker-side "
+        "stop loss and take profit; only bot-opened positions are closed by signal or at run end."
+    )
+    if demo_row:
+        try:
+            bot_status = json.loads(demo_row["payload"])
+        except (TypeError, json.JSONDecodeError):
+            bot_status = {"status": "UNKNOWN"}
+    else:
+        bot_status = {"status": "WAITING", "message": "Waiting for a readable demo portfolio and a running service."}
+    st.write(f"Status: **{bot_status.get('status', 'UNKNOWN')}**")
+    st.write(bot_status.get("message", ""))
+    if bot_status.get("ends_at"):
+        st.write(f"Run window: {bot_status.get('started_at')} to {bot_status.get('ends_at')} (UTC)")
+    if bot_status.get("stop_reason"):
+        st.info(bot_status["stop_reason"])
+    pnl_a, pnl_b, pnl_c = st.columns(3)
+    pnl_a.metric("Bot open / last-seen P&L", f"{bot_status.get('bot_open_pnl', 0):,.2f} USD")
+    pnl_b.metric("Demo account unrealized P&L change", f"{bot_status.get('account_unrealized_change', 0):,.2f} USD")
+    pnl_c.metric("Demo account realized P&L change", f"{bot_status.get('account_realized_change', 0):,.2f} USD")
+    st.caption("Account P&L changes include all activity in the demo account since the run began; they are not strategy-only returns.")
+    if not demo_orders.empty:
+        st.markdown("**Bot order log**")
+        st.dataframe(demo_orders, use_container_width=True, hide_index=True)
+    st.warning(
+        "This run is for observing the rules, not predicting returns. Demo fills and overnight results do not guarantee live performance."
+    )
