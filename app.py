@@ -374,14 +374,12 @@ with signals_tab:
         st.dataframe(signal_frame, use_container_width=True, hide_index=True)
         with st.expander("Signal and sizing rules"):
             st.markdown(
-                f"- A **Buy candidate** needs a trend/momentum score of at least 4.
-"
-                f"- A **Reduce / avoid** signal is shown at a score of -2 or lower; other results are Hold / Watch.
-"
-                f"- Size estimate uses {RISK_PER_TRADE_PCT:g}% of estimated account value at risk, "
-                f"capped at {MAX_POSITION_PCT:g}% of the account. Missing portfolio data disables sizing.
-"
-                "- The stop gap is an ATR-based calculation used for sizing only; this app does not place or manage orders."
+                f"""
+- A **Buy candidate** needs a trend/momentum score of at least 4.
+- A **Reduce / avoid** signal is shown at a score of -2 or lower; other results are Hold / Watch.
+- Size estimate uses {RISK_PER_TRADE_PCT:g}% of estimated account value at risk, capped at {MAX_POSITION_PCT:g}% of the account. Missing portfolio data disables sizing.
+- The stop gap is an ATR-based calculation used for sizing only; this app does not place or manage orders.
+"""
             )
 
 with risk_tab:
