@@ -285,11 +285,12 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 quote = quotes_by_symbol.get(symbol) or {}
                 if previous or str(instrument_id) in held_instruments:
                     continue
-                if _flag(meta.get("is_currently_tradable")) is False:
+                # Unknown market flags are not safe to trade; require explicit true values.
+                if not _flag(meta.get("is_currently_tradable")):
                     continue
-                if _flag(meta.get("is_buy_enabled")) is False:
+                if not _flag(meta.get("is_buy_enabled")):
                     continue
-                if _flag(meta.get("is_open")) is False:
+                if not _flag(meta.get("is_open")):
                     continue
                 signal_row = connection.execute(
                     "SELECT payload FROM market_analysis WHERE symbol=? AND status='ok'",
