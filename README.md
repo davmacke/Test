@@ -33,7 +33,7 @@ Optional environment settings:
 - `UNIVERSE_LIMIT` (20–100; default 100)
 - `POLL_SECONDS` (minimum 30; default 60)
 - `ANALYSIS_REFRESH_SECONDS` (default 1800)
-- `CANDLES_PER_CYCLE` (default 3)
+- `CANDLES_PER_CYCLE` (default 10)
 - `PORTFOLIO_REFRESH_SECONDS` (default 300)
 - `RISK_PER_TRADE_PCT` (default 0.5)
 - `MAX_POSITION_PCT` (default 5)
