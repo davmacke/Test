@@ -137,7 +137,7 @@ def portfolio_risk(portfolio, instrument_classes=None):
                 "instrument_id": instrument_id, "asset_class": category,
                 "capital_usd": amount, "leverage": leverage,
                 "direction": "Long" if position.get("isBuy", True) else "Short",
-                "has_stop": not bool(position.get("isNoStopLoss", False)),
+                "has_stop": (bool(position.get("stopLossRate")) if "isNoStopLoss" not in position else not bool(position.get("isNoStopLoss"))),
             })
         except (TypeError, ValueError):
             continue
