@@ -28,7 +28,7 @@ MAX_POSITION_PCT = max(0.0, float(os.getenv("MAX_POSITION_PCT", "5")))
 
 st.set_page_config(page_title="eToro Market & Risk Analyst", layout="wide")
 st.title("eToro Market & Portfolio Analyst")
-st.caption("Multi-asset market signals · Portfolio risk checks · Read-only / paper workflow")
+st.caption("Multi-asset market signals · Portfolio risk checks · Demo-only automatic trading")
 
 if not os.getenv("ETORO_API_KEY") or not os.getenv("ETORO_USER_KEY"):
     st.error("Set ETORO_API_KEY and ETORO_USER_KEY in your hosting provider's environment settings.")
@@ -416,7 +416,7 @@ with signals_tab:
 - A **Buy candidate** needs a trend/momentum score of at least 4.
 - A **Reduce / avoid** signal is shown at a score of -2 or lower; other results are Hold / Watch.
 - Size estimate uses {RISK_PER_TRADE_PCT:g}% of estimated account value at risk, capped at {MAX_POSITION_PCT:g}% of the account. Missing portfolio data disables sizing.
-- The stop gap is an ATR-based calculation used for sizing only; this app does not place or manage orders.
+- The stop gap is ATR-based. When the demo bot is enabled, it can place demo orders with broker-side stop-loss and take-profit levels.
 """
             )
 
