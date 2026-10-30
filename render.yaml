@@ -35,3 +35,15 @@ services:
         value: "0.5"
       - key: MAX_POSITION_PCT
         value: "5"
+      - key: DEMO_AUTOTRADE_ENABLED
+        value: "true"
+      - key: DEMO_RUN_HOURS
+        value: "8"
+      - key: DEMO_MAX_ORDERS_PER_RUN
+        value: "5"
+      - key: DEMO_MAX_OPEN_POSITIONS
+        value: "5"
+      - key: DEMO_MAX_ORDER_USD
+        value: "50"
+      - key: DEMO_MAX_OPEN_LOSS_USD
+        value: "25"
