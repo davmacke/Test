@@ -28,7 +28,7 @@ services:
       - key: ANALYSIS_REFRESH_SECONDS
         value: "1800"
       - key: CANDLES_PER_CYCLE
-        value: "3"
+        value: "10"
       - key: PORTFOLIO_REFRESH_SECONDS
         value: "300"
       - key: RISK_PER_TRADE_PCT
