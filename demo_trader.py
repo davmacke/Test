@@ -51,7 +51,7 @@ def _managed_positions(portfolio):
     }
 
 
-def _save_order(connection, order_id, status, **values):
+def _save_order(connection, row_id, status, **values):
     fields = ["status=?", "updated_at=?"]
     args = [status, _now().isoformat()]
     allowed = {
@@ -62,7 +62,7 @@ def _save_order(connection, order_id, status, **values):
         if field in allowed:
             fields.append(f"{field}=?")
             args.append(value)
-    args.append(order_id)
+    args.append(row_id)
     connection.execute(
         f"UPDATE demo_bot_orders SET {', '.join(fields)} WHERE id=?",
         args,
@@ -151,6 +151,81 @@ def _close_order(connection, feed, row, log, reason):
         log("ERROR", f"Demo close outcome unknown for {row['symbol']}: {type(error).__name__}")
 
 
+
+def _execution_check(connection, feed, log):
+    token = os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip()
+    if not token:
+        return
+    request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "etoro-demo-check:" + token))
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS demo_execution_checks "
+        "(token TEXT PRIMARY KEY, bot_order_id INTEGER NOT NULL)"
+    )
+    prior = connection.execute(
+        "SELECT o.* FROM demo_execution_checks c JOIN demo_bot_orders o "
+        "ON o.id=c.bot_order_id WHERE c.token=?", (token,)
+    ).fetchone()
+    if prior:
+        print("DEMO_EXECUTION_CHECK " + json.dumps({
+            "status": prior["status"], "symbol": prior["symbol"],
+            "amount_usd": prior["amount_usd"], "order_id": prior["order_id"],
+            "position_id": prior["position_id"], "message": prior["message"],
+        }), flush=True)
+        return
+    # Fixed, explicitly requested execution check; independent of strategy signals.
+    mapping = feed.resolve_symbols(["SOL"])
+    meta = mapping.get("SOL") or {}
+    if meta.get("instrument_id") != 100063:
+        raise RuntimeError("Execution check could not verify SOL identity")
+    quotes = feed.fetch_rates({"SOL": meta})
+    price = _float(quotes[0].get("ask"))
+    bid = _float(quotes[0].get("bid"))
+    if price <= 0 or bid <= 0 or (price - bid) / price > 0.02:
+        raise RuntimeError("Execution check requires a usable SOL quote")
+    fresh = feed.fetch_portfolio("demo")
+    cash = _float((fresh.get("clientPortfolio") or {}).get("credit"))
+    if cash < 10:
+        raise RuntimeError("Execution check requires 10 USD demo cash")
+    stamp = _now().isoformat()
+    cursor = connection.execute(
+        """INSERT INTO demo_bot_orders
+           (symbol,instrument_id,request_id,action,status,amount_usd,
+            entry_price,stop_rate,target_rate,created_at,updated_at,message)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+        ("SOL", 100063, request_id, "open", "SUBMITTING", 10.0,
+         price, price * 0.95, price * 1.10, stamp, stamp,
+         "User-requested 10 USD demo execution check; not a strategy signal"),
+    )
+    connection.execute(
+        "INSERT INTO demo_execution_checks(token,bot_order_id) VALUES(?,?)",
+        (token, cursor.lastrowid),
+    )
+    connection.commit()
+    try:
+        result = feed.place_demo_order({
+            "action": "open", "transaction": "buy", "instrumentId": 100063,
+            "orderType": "mkt", "amount": 10.0, "orderCurrency": "usd",
+            "leverage": 1, "stopLossType": "fixed",
+            "stopLossRate": round(price * 0.95, 8),
+            "takeProfitRate": round(price * 1.10, 8),
+        }, request_id)
+        order_id = _id(result, "orderId", "orderID")
+        _save_order(connection, cursor.lastrowid, "PENDING", order_id=order_id,
+                    message="10 USD demo execution check submitted; awaiting broker fill")
+        print("DEMO_EXECUTION_CHECK " + json.dumps({
+            "status": "PENDING", "symbol": "SOL", "amount_usd": 10,
+            "order_id": order_id,
+        }), flush=True)
+    except Exception as error:
+        _save_order(connection, cursor.lastrowid, "UNKNOWN",
+                    message=f"Execution check outcome unknown: {type(error).__name__}: {error}")
+        print("DEMO_EXECUTION_CHECK " + json.dumps({
+            "status": "UNKNOWN", "error_type": type(error).__name__,
+            "http_status": getattr(getattr(error, "response", None), "status_code", None),
+        }), flush=True)
+        # Persisted request id prevents automatic resubmission after any ambiguity.
+
+
 def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     enabled = os.getenv("DEMO_AUTOTRADE_ENABLED", "false").strip().lower() in {"1", "true", "yes"}
     mode = os.getenv("ETORO_TRADING_MODE", "demo").strip().lower()
@@ -159,6 +234,8 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     if mode != "demo":
         return {"status": "BLOCKED", "message": "Order execution is hard-locked to demo mode."}
 
+    if os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip():
+        portfolio = feed.fetch_portfolio("demo")
     client = (portfolio or {}).get("clientPortfolio") or {}
     if not client:
         return {"status": "WAITING", "message": "Waiting for a readable eToro demo portfolio."}
@@ -268,6 +345,9 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
 
     if state["status"] == "RUNNING":
+        if os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip():
+            _execution_check(connection, feed, log)
+            return _snapshot(connection, portfolio, state, managed_open_pnl)
         # A deteriorating signal closes only positions opened by this demo bot.
         signal_by_symbol = {}
         for row in connection.execute("SELECT symbol,payload FROM market_analysis WHERE status='ok'"):
