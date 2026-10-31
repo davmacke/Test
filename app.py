@@ -11,6 +11,7 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from analysis import analyze_candles, portfolio_risk
+from bollinger_rsi import analyze_bollinger_rsi
 from data_quality import quote_problem, age_seconds
 from demo_trader import run_demo_cycle
 from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS
@@ -94,6 +95,19 @@ def connect():
             created_at TEXT, updated_at TEXT, message TEXT
         )
     """)
+    for table, name, definition in (
+        ("demo_bot_state", "run_key", "TEXT NOT NULL DEFAULT 'legacy'"),
+        ("demo_bot_orders", "run_key", "TEXT NOT NULL DEFAULT 'legacy'"),
+        ("demo_bot_orders", "strategy", "TEXT NOT NULL DEFAULT 'trend'"),
+        ("demo_bot_orders", "signal_candle", "TEXT"),
+    ):
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        if name not in columns:
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+            except sqlite3.OperationalError:
+                if name not in {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}:
+                    raise
     connection.execute("""
         CREATE TABLE IF NOT EXISTS demo_bot_snapshot(
             id INTEGER PRIMARY KEY CHECK(id=1), fetched_at TEXT, payload TEXT
@@ -177,7 +191,7 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
     now = datetime.now(timezone.utc)
     cache_rows = {
         row["symbol"]: row
-        for row in connection.execute("SELECT symbol,fetched_at,status FROM market_analysis")
+        for row in connection.execute("SELECT symbol,fetched_at,status,payload FROM market_analysis")
     }
     stale = []
     for symbol in mapping:
@@ -186,11 +200,14 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
             stale.append(symbol)
             continue
         try:
+            if row["status"] == "ok" and "bollinger_rsi" not in json.loads(row["payload"]):
+                stale.append(symbol)
+                continue
             age = (now - datetime.fromisoformat(row["fetched_at"])).total_seconds()
             threshold = 300 if row["status"] == "error" else CANDLE_REFRESH_SECONDS
             if age >= threshold:
                 stale.append(symbol)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, json.JSONDecodeError):
             stale.append(symbol)
 
     for symbol in stale[:CANDLES_PER_CYCLE]:
@@ -204,6 +221,15 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
                 risk_per_trade_pct=RISK_PER_TRADE_PCT,
                 max_position_pct=MAX_POSITION_PCT,
             )
+            result["bollinger_rsi"] = analyze_bollinger_rsi(
+                candles, current_price=latest_prices.get(symbol), equity=equity,
+                risk_per_trade_pct=RISK_PER_TRADE_PCT, max_position_pct=MAX_POSITION_PCT,
+            )
+            bb = result["bollinger_rsi"]
+            log(connection, "INFO", "BOLLINGER_RSI_ANALYSIS " + json.dumps({
+                "symbol": symbol, "action": bb["action"], "completed_bars": bb["bars"],
+                "signal_candle": bb.get("signal_candle"), "rsi14": bb.get("rsi14"),
+            }))
             connection.execute(
                 "INSERT OR REPLACE INTO market_analysis(symbol,fetched_at,status,payload) VALUES(?,?,?,?)",
                 (symbol, now.isoformat(), "ok", json.dumps(result)),
@@ -354,7 +380,7 @@ try:
         "SELECT fetched_at,payload FROM demo_bot_snapshot WHERE id=1"
     ).fetchone()
     demo_orders = pd.read_sql_query(
-        "SELECT symbol,action,status,amount_usd,entry_price,stop_rate,target_rate,pnl,message,created_at "
+        "SELECT symbol,run_key,strategy,signal_candle,action,status,amount_usd,entry_price,stop_rate,target_rate,pnl,message,created_at "
         "FROM demo_bot_orders ORDER BY id DESC",
         connection,
     )
@@ -426,6 +452,7 @@ with signals_tab:
         st.info("Historical candles are being loaded gradually. Initial coverage for 100 symbols can take around ten minutes.")
     else:
         records = []
+        bb_records = []
         for _, row in analyses.iterrows():
             try:
                 result = json.loads(row["payload"])
@@ -450,11 +477,35 @@ with signals_tab:
                 "Why": "; ".join(result.get("reasons", [])),
                 "Updated": row["fetched_at"],
             })
+            bb = result.get("bollinger_rsi") or {}
+            bb_records.append({
+                "Symbol": row["symbol"], "Signal": bb.get("action", "Loading"),
+                "Quote status": quote.iloc[0]["quote_status"] if not quote.empty else "Unavailable",
+                "Price": price, "Wilder RSI (14)": bb.get("rsi14"),
+                "Lower band / stop": bb.get("lower_band"),
+                "Middle band / target": bb.get("middle_band"),
+                "Upper band": bb.get("upper_band"),
+                "Signal candle (UTC)": bb.get("signal_candle"),
+                "Size estimate (USD)": bb.get("suggested_size_usd"),
+                "Why": "; ".join(bb.get("reasons", [])),
+            })
         signal_frame = pd.DataFrame(records)
         sort_order = {"BUY CANDIDATE": 0, "HOLD / WATCH": 1, "REDUCE / AVOID": 2}
         signal_frame["_sort"] = signal_frame["Signal"].map(sort_order).fillna(3)
         signal_frame = signal_frame.sort_values(["_sort", "Score"], ascending=[True, False]).drop(columns="_sort")
         st.dataframe(signal_frame, use_container_width=True, hide_index=True)
+        st.subheader("Bollinger Bands + RSI · daily wick recovery")
+        st.caption(
+            "Completed daily candles only: 20-period bands at 2 standard deviations, Wilder RSI(14) below 30, "
+            "low below the lower band and close back inside. Long entries use the signal candle's fixed "
+            "lower band as stop and middle band as target. Fresh quotes and market status are required. "
+            "Both strategies share the bot budget; a Bollinger/RSI candidate takes priority for the same symbol."
+        )
+        bb_frame = pd.DataFrame(bb_records)
+        if not bb_frame.empty:
+            bb_frame["_sort"] = bb_frame["Signal"].map({"BUY CANDIDATE": 0, "HOLD / WATCH": 1}).fillna(2)
+            st.dataframe(bb_frame.sort_values("_sort").drop(columns="_sort"),
+                         use_container_width=True, hide_index=True)
         with st.expander("Signal and sizing rules"):
             st.markdown(
                 f"""
@@ -583,6 +634,8 @@ with bot_tab:
         bot_status = {"status": "WAITING", "message": "Waiting for a readable demo portfolio and a running service."}
     st.write(f"Status: **{bot_status.get('status', 'UNKNOWN')}**")
     st.write(bot_status.get("message", ""))
+    if bot_status.get("run_key"):
+        st.caption(f"Run ID: {bot_status['run_key']}")
     if demo_row:
         st.caption(f"Last bot cycle: {demo_row['fetched_at']}")
         cycle_age = age_seconds(demo_row["fetched_at"])
