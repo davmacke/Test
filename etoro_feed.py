@@ -2,6 +2,9 @@ import os
 import time
 import uuid
 import requests
+import math
+from datetime import datetime, timezone
+from data_quality import utc_timestamp
 
 BASE = "https://public-api.etoro.com/api/v1"
 
@@ -74,6 +77,7 @@ class EtoroFeed:
                         "is_currently_tradable": row.get("isCurrentlyTradable"),
                         "is_buy_enabled": row.get("isBuyEnabled"),
                         "is_open": row.get("isOpen"),
+                        "status_checked_at": datetime.now(timezone.utc).isoformat(),
                     }
                     break
             if index < len(symbols) - 1:
@@ -100,12 +104,23 @@ class EtoroFeed:
                 row = by_id.get(meta["instrument_id"])
                 if row:
                     def number(key):
-                        return float(row[key]) if row.get(key) is not None else None
+                        try:
+                            value = float(row[key])
+                            return value if math.isfinite(value) else None
+                        except (KeyError, TypeError, ValueError, OverflowError):
+                            return None
+                    broker_stamp = utc_timestamp(row.get("date") or row.get("timestamp"))
+                    last = next((number(key) for key in ("lastPrice", "lastExecution", "rate")
+                                 if number(key) is not None and number(key) > 0), None)
+                    if last is None and number("bid") and number("ask"):
+                        last = (number("bid") + number("ask")) / 2
                     output.append({
                         "symbol": symbol,
                         "instrument_id": meta["instrument_id"],
                         "asset_class": meta.get("asset_class", "Unclassified"),
-                        "last": number("lastPrice") if row.get("lastPrice") is not None else number("rate"),
+                        "last": last,
+                        "quote_ts": broker_stamp.isoformat() if broker_stamp else None,
+                        "fetched_at": datetime.now(timezone.utc).isoformat(),
                         "bid": number("bid"),
                         "ask": number("ask"),
                         "change_pct": number("change"),

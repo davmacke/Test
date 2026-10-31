@@ -11,6 +11,7 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from analysis import analyze_candles, portfolio_risk
+from data_quality import quote_problem, age_seconds
 from demo_trader import run_demo_cycle
 from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS
 
@@ -49,6 +50,12 @@ def connect():
     quote_columns = {row["name"] for row in connection.execute("PRAGMA table_info(quotes)")}
     if "asset_class" not in quote_columns:
         connection.execute("ALTER TABLE quotes ADD COLUMN asset_class TEXT")
+    if "quote_ts" not in quote_columns:
+        try:
+            connection.execute("ALTER TABLE quotes ADD COLUMN quote_ts TEXT")
+        except sqlite3.OperationalError:
+            if "quote_ts" not in {row["name"] for row in connection.execute("PRAGMA table_info(quotes)")}:
+                raise
     connection.execute("""
         CREATE TABLE IF NOT EXISTS relative_strength(
             name TEXT, numerator TEXT, denominator TEXT, ts TEXT, ratio REAL,
@@ -97,6 +104,7 @@ def connect():
 
 
 def log(connection, level, message):
+    print(json.dumps({"event": "market_worker", "level": level, "message": str(message)[:1000]}), flush=True)
     connection.execute(
         "INSERT INTO events(ts,level,message) VALUES(?,?,?)",
         (datetime.now(timezone.utc).isoformat(), level, str(message)[:1000]),
@@ -132,7 +140,11 @@ def load_mapping(cache_path, feed):
         mapping.update(resolved)
         mapping["_unresolved_symbols"] = sorted(unresolved)
         cache_path.write_text(json.dumps(mapping, indent=2), encoding="utf-8")
-    return {symbol: mapping[symbol] for symbol in wanted if symbol in mapping}
+    dynamic_fields = {"is_open", "is_buy_enabled", "is_currently_tradable", "status_checked_at"}
+    return {
+        symbol: {key: value for key, value in mapping[symbol].items() if key not in dynamic_fields}
+        for symbol in wanted if isinstance(mapping.get(symbol), dict)
+    }
 
 
 def refresh_portfolio(connection, feed):
@@ -220,19 +232,19 @@ def refresh_once():
         for quote in quotes:
             connection.execute(
                 """INSERT OR REPLACE INTO quotes
-                   (symbol,instrument_id,ts,bid,ask,last,change_pct,asset_class)
-                   VALUES(?,?,?,?,?,?,?,?)""",
+                   (symbol,instrument_id,ts,bid,ask,last,change_pct,asset_class,quote_ts)
+                   VALUES(?,?,?,?,?,?,?,?,?)""",
                 (
-                    quote["symbol"], quote["instrument_id"], stamp, quote.get("bid"),
+                    quote["symbol"], quote["instrument_id"], quote.get("fetched_at") or stamp, quote.get("bid"),
                     quote.get("ask"), quote.get("last"), quote.get("change_pct"),
-                    quote.get("asset_class", "Unclassified"),
+                    quote.get("asset_class", "Unclassified"), quote.get("quote_ts"),
                 ),
             )
         connection.commit()
 
         latest_prices = {
             quote["symbol"]: quote.get("last") for quote in quotes
-            if quote.get("last") is not None
+            if quote.get("last") is not None and quote_problem(quote) is None
         }
         pairs = [
             ("RSP / SPY · equal-weight breadth", "RSP", "SPY"),
@@ -285,6 +297,11 @@ def refresh_once():
             (datetime.now(timezone.utc).isoformat(), json.dumps(demo_status)),
         )
         connection.commit()
+        quality_counts = {}
+        for quote in quotes:
+            reason = quote_problem(quote) or "Fresh"
+            quality_counts[reason] = quality_counts.get(reason, 0) + 1
+        log(connection, "INFO", "Quote quality: " + json.dumps(quality_counts))
         log(connection, "INFO", f"Fetched {len(quotes)} rate snapshots and updated market/risk analysis")
     except Exception as error:
         log(connection, "ERROR", f"{type(error).__name__}: {error}")
@@ -369,13 +386,26 @@ if not quotes.empty:
     except ValueError:
         pass
 
+if not quotes.empty:
+    quotes["quote_status"] = quotes.apply(
+        lambda row: quote_problem({**row.to_dict(), "fetched_at": row["ts"]}) or "Fresh",
+        axis=1,
+    )
+
 a, b, c, d = st.columns(4)
 a.metric("Quoted instruments", int(quotes.symbol.nunique()) if not quotes.empty else 0)
 b.metric("Open positions", risk["position_count"] if portfolio else "Unavailable")
 c.metric("Estimated account value", f"{risk['estimated_account_value_usd']:,.2f} USD" if portfolio else "Unavailable")
-d.metric("Quote age", f"{int(quote_age)}s" if quote_age is not None else "No data")
+fresh_count = int((quotes["quote_status"] == "Fresh").sum()) if not quotes.empty else 0
+d.metric("Fresh broker quotes", f"{fresh_count}/{len(quotes)}")
+st.caption(
+    f"Last successful quote fetch: {int(quote_age)}s ago" if quote_age is not None
+    else "No successful quote fetch recorded"
+)
+if not quotes.empty and fresh_count < len(quotes):
+    st.info("Some instruments have stale or missing broker timestamps. Closed markets can show old prices. These quotes cannot trigger new bot entries.")
 if quote_age is None or quote_age > max(POLL * 4, 180):
-    st.warning("The quote feed is stale or not connected. Signals may be out of date.")
+    st.warning("No recent successful quote fetch. Check the feed and bot cycle timestamps.")
 if portfolio_row and portfolio_row["status"] == "error":
     st.warning("The eToro portfolio read failed. Check API read scopes and Render logs.")
 elif not portfolio:
@@ -410,6 +440,8 @@ with signals_tab:
                 "Signal": result.get("action", row["status"].upper()),
                 "Score": result.get("score"),
                 "Price": price,
+                "Quote status": quote.iloc[0]["quote_status"] if not quote.empty else "Unavailable",
+                "Broker quote time": quote.iloc[0]["quote_ts"] if not quote.empty else None,
                 "RSI (14)": result.get("rsi14"),
                 "20d momentum %": result.get("momentum20_pct"),
                 "Annual volatility %": result.get("annual_volatility_pct"),
@@ -528,7 +560,7 @@ with feed_tab:
         quote_view = quotes.copy()
         quote_view["spread_pct"] = ((quote_view["ask"] - quote_view["bid"]) / quote_view["last"] * 100).where(quote_view["last"] > 0)
         st.dataframe(
-            quote_view[["symbol", "asset_class", "last", "bid", "ask", "spread_pct", "change_pct", "ts"]],
+            quote_view[["symbol", "asset_class", "last", "bid", "ask", "spread_pct", "change_pct", "quote_status", "quote_ts", "ts"]].rename(columns={"quote_ts": "Broker quote time", "ts": "Fetched at"}),
             use_container_width=True, hide_index=True,
         )
     st.markdown("**Recent service events**")
@@ -551,6 +583,14 @@ with bot_tab:
         bot_status = {"status": "WAITING", "message": "Waiting for a readable demo portfolio and a running service."}
     st.write(f"Status: **{bot_status.get('status', 'UNKNOWN')}**")
     st.write(bot_status.get("message", ""))
+    if demo_row:
+        st.caption(f"Last bot cycle: {demo_row['fetched_at']}")
+        cycle_age = age_seconds(demo_row["fetched_at"])
+        if cycle_age is None or cycle_age > max(POLL * 4, 180):
+            st.warning("Bot status is stale. Check recent service events before assuming it is still evaluating entries.")
+    if bot_status.get("entry_decisions"):
+        st.markdown("**Entry decisions from the last cycle**")
+        st.dataframe(pd.DataFrame(bot_status["entry_decisions"]), use_container_width=True, hide_index=True)
     if bot_status.get("ends_at"):
         st.write(f"Run window: {bot_status.get('started_at')} to {bot_status.get('ends_at')} (UTC)")
     if bot_status.get("cash_budget_usd") is not None:
