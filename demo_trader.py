@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from analysis import portfolio_risk
+from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
 from data_quality import quote_problem, market_problem
 
 
@@ -231,6 +232,13 @@ def _execution_check(connection, feed, log):
 
 
 
+def _select_strategy(analysis):
+    bollinger = analysis.get("bollinger_rsi") or {}
+    if bollinger.get("action") == "BUY CANDIDATE":
+        return BB_STRATEGY, bollinger
+    return "trend", analysis
+
+
 def _evaluate_entry(feed, symbol, meta, quote, analysis):
     """Refresh dynamic market flags for every buy candidate; never trust cached flags."""
     if analysis.get("action") != "BUY CANDIDATE":
@@ -270,10 +278,30 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         for meta in mapping.values()
     })
     now = _now()
+    requested_run_key = os.getenv("DEMO_RUN_ID", "").strip()
     hours = max(1, min(12, int(os.getenv("DEMO_RUN_HOURS", "8"))))
     state = connection.execute(
         "SELECT * FROM demo_bot_state WHERE id=1"
     ).fetchone()
+    if state is not None and requested_run_key and requested_run_key != state["run_key"]:
+        active_count = connection.execute(
+            "SELECT COUNT(*) AS n FROM demo_bot_orders WHERE status IN "
+            "('SUBMITTING','UNKNOWN','PENDING','OPEN','CLOSING','CANCELLING')"
+        ).fetchone()["n"]
+        if active_count:
+            return {"status": "BLOCKED", "message": "New run blocked until prior bot orders are reconciled."}
+        connection.execute(
+            """UPDATE demo_bot_state SET started_at=?,ends_at=?,status='RUNNING',
+               start_unrealized_pnl=?,last_unrealized_pnl=?,start_realized_pnl=?,
+               last_realized_pnl=?,stop_reason='',cash_budget_usd=?,run_key=? WHERE id=1""",
+            (now.isoformat(), (now+timedelta(hours=hours)).isoformat(),
+             _float(client.get("unrealizedPnL", client.get("unrealisedPnL"))),
+             _float(client.get("unrealizedPnL", client.get("unrealisedPnL"))),
+             _float(client.get("closedPositionsNetProfit")), _float(client.get("closedPositionsNetProfit")),
+             max(0.0, _float(risk.get("cash_usd"))), requested_run_key),
+        )
+        connection.commit()
+        state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
     if state is None:
         started = now.isoformat()
         ends = (now + timedelta(hours=hours)).isoformat()
@@ -283,14 +311,15 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         connection.execute(
             """INSERT INTO demo_bot_state
                (id,started_at,ends_at,status,start_unrealized_pnl,last_unrealized_pnl,
-                start_realized_pnl,last_realized_pnl,stop_reason,cash_budget_usd)
-               VALUES(1,?,?,?,?,?,?,?,?,?)""",
+                start_realized_pnl,last_realized_pnl,stop_reason,cash_budget_usd,run_key)
+               VALUES(1,?,?,?,?,?,?,?,?,?,?)""",
             (started, ends, "RUNNING", start_unrealized, start_unrealized,
-             start_realized, start_realized, "", start_cash_budget),
+             start_realized, start_realized, "", start_cash_budget, requested_run_key or "legacy"),
         )
         connection.commit()
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
 
+    run_key = state["run_key"]
     current_unrealized = _float(client.get("unrealizedPnL", client.get("unrealisedPnL")), 0.0)
     current_realized = _float(client.get("closedPositionsNetProfit"), state["last_realized_pnl"])
     connection.execute(
@@ -301,7 +330,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
 
     _sync_orders(connection, feed, portfolio, log)
     state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
-    rows = connection.execute("SELECT * FROM demo_bot_orders ORDER BY id").fetchall()
+    rows = connection.execute("SELECT * FROM demo_bot_orders WHERE run_key=? ORDER BY id", (run_key,)).fetchall()
     available_cash = max(0.0, _float(risk.get("cash_usd"), 0.0))
     budget_locked = any(
         row["action"] == "open"
@@ -377,7 +406,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
             except (TypeError, json.JSONDecodeError):
                 continue
         for row in rows:
-            if row["status"] == "OPEN" and signal_by_symbol.get(row["symbol"]) == "REDUCE / AVOID":
+            if row["status"] == "OPEN" and row["strategy"] == "trend" and signal_by_symbol.get(row["symbol"]) == "REDUCE / AVOID":
                 _close_order(connection, feed, row, log, "Signal changed to Reduce / Avoid")
                 return _snapshot(connection, portfolio, state, managed_open_pnl)
 
@@ -401,7 +430,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         if len(opens) < order_limit and len(active) < position_limit:
             for symbol, meta in mapping.items():
                 previous = connection.execute(
-                    "SELECT id FROM demo_bot_orders WHERE symbol=? LIMIT 1", (symbol,)
+                    "SELECT id FROM demo_bot_orders WHERE symbol=? AND run_key=? LIMIT 1", (symbol, run_key)
                 ).fetchone()
                 instrument_id = int(meta["instrument_id"])
                 quote = quotes_by_symbol.get(symbol) or {}
@@ -417,9 +446,14 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     analysis = json.loads(signal_row["payload"]) if signal_row else {}
                 except (TypeError, json.JSONDecodeError):
                     analysis = {}
+                trend_action = analysis.get("action", "Unavailable")
+                bb_action = (analysis.get("bollinger_rsi") or {}).get("action", "Unavailable")
+                strategy, analysis = _select_strategy(analysis)
                 reason, fresh_meta = _evaluate_entry(feed, symbol, meta, quote, analysis)
                 decision = {
-                    "Symbol": symbol, "Signal": analysis.get("action", "Unavailable"),
+                    "Symbol": symbol, "Strategy": strategy,
+                    "Signal": analysis.get("action", "Unavailable"),
+                    "Trend signal": trend_action, "Bollinger RSI signal": bb_action,
                     "Decision": reason or "Data checks passed",
                     "Broker timestamp": quote.get("quote_ts"),
                     "Fetched at": quote.get("fetched_at"),
@@ -432,6 +466,14 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 if reason:
                     continue
                 price = _float(quote.get("ask") or quote.get("last"))
+                if strategy == BB_STRATEGY:
+                    plan, reason = plan_bollinger_entry(
+                        analysis, price, risk.get("estimated_account_value_usd", 0), _now()
+                    )
+                    if reason:
+                        decision["Decision"] = reason
+                        continue
+                    analysis = {**analysis, **plan}
                 stop_gap = _float(analysis.get("stop_gap_pct"))
                 if price <= 0 or stop_gap <= 0 or stop_gap > 8:
                     decision["Decision"] = "Risk sizing: invalid price or stop gap outside limits"
@@ -444,18 +486,19 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 if amount < 10:
                     decision["Decision"] = "Risk sizing: cash or remaining budget below minimum"
                     continue
-                stop_rate = price * (1 - stop_gap / 100)
-                target_rate = price * (1 + 2 * stop_gap / 100)
+                stop_rate = analysis["stop_rate"] if strategy == BB_STRATEGY else price * (1 - stop_gap / 100)
+                target_rate = analysis["target_rate"] if strategy == BB_STRATEGY else price * (1 + 2 * stop_gap / 100)
                 request_id = str(uuid.uuid4())
                 created = now.isoformat()
                 cursor = connection.execute(
                     """INSERT INTO demo_bot_orders
                        (symbol,instrument_id,request_id,action,status,amount_usd,
-                        entry_price,stop_rate,target_rate,created_at,updated_at,message)
-                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        entry_price,stop_rate,target_rate,created_at,updated_at,message,strategy,signal_candle,run_key)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (symbol, instrument_id, request_id, "open", "SUBMITTING",
                      amount, price, stop_rate, target_rate, created, created,
-                     "Long-only demo entry; 1x leverage"),
+                     f"Long-only demo entry; 1x leverage; {strategy}", strategy,
+                     analysis.get("signal_candle") if strategy == BB_STRATEGY else None, run_key),
                 )
                 connection.commit()
                 try:
@@ -477,7 +520,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                         message="Submitted to eToro demo; awaiting final order status",
                     )
                     decision["Decision"] = "Demo order submitted"
-                    log("INFO", f"Submitted demo BUY for {symbol}, amount {amount:.2f} USD")
+                    log("INFO", f"Submitted demo BUY for {symbol}, amount {amount:.2f} USD, strategy {strategy}")
                 except Exception as error:
                     _save_order(
                         connection, cursor.lastrowid, "UNKNOWN",
@@ -491,7 +534,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                                     "Decision": "Run entry limit or open position limit reached"})
 
     state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
-    rows = connection.execute("SELECT * FROM demo_bot_orders ORDER BY id").fetchall()
+    rows = connection.execute("SELECT * FROM demo_bot_orders WHERE run_key=? ORDER BY id", (run_key,)).fetchall()
     managed_open_pnl = sum(
         _float(row["pnl"]) for row in rows if row["status"] in {"OPEN", "CLOSING"}
     )
@@ -500,7 +543,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
 
 def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
     rows = connection.execute(
-        "SELECT symbol,action,status,amount_usd,entry_price,stop_rate,target_rate,position_id,pnl,message,created_at "
+        "SELECT symbol,run_key,strategy,signal_candle,action,status,amount_usd,entry_price,stop_rate,target_rate,position_id,pnl,message,created_at "
         "FROM demo_bot_orders ORDER BY id DESC"
     ).fetchall()
     client = (portfolio or {}).get("clientPortfolio") or {}
@@ -512,12 +555,15 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
         reason = decision["Decision"]
         counts[reason] = counts.get(reason, 0) + 1
     print("DEMO_BOT_STATUS " + json.dumps({
-        "status": state["status"], "decision_counts": counts,
+        "status": state["status"], "run_key": state["run_key"],
+        "started_at": state["started_at"], "ends_at": state["ends_at"],
+        "bot_open_pnl": bot_pnl, "decision_counts": counts,
         "candidate_checks": [d for d in decisions if d.get("Signal") == "BUY CANDIDATE"],
-        "orders": [{"symbol": r["symbol"], "status": r["status"]} for r in rows],
+        "orders": [{"symbol": r["symbol"], "strategy": r["strategy"], "run_key": r["run_key"], "status": r["status"]} for r in rows],
     }), flush=True)
     return {
         "entry_decisions": decisions,
+        "run_key": state["run_key"],
         "status": state["status"],
         "started_at": state["started_at"],
         "ends_at": state["ends_at"],
@@ -528,7 +574,7 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
         "cash_budget_usd": max(0.0, _float(state["cash_budget_usd"], 0.0)),
         "bot_reserved_cash_usd": sum(
             _float(row["amount_usd"]) for row in rows
-            if row["action"] == "open" and row["status"] in ACTIVE_ORDER_STATES
+            if row["action"] == "open" and row["status"] in ACTIVE_ORDER_STATES and row["run_key"] == state["run_key"]
         ),
         "orders": [dict(row) for row in rows],
         "message": state["stop_reason"] or "Demo-only automatic trading is active.",
