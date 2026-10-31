@@ -202,6 +202,10 @@ def _execution_check(connection, feed, log):
          "User-requested 10 USD demo execution check; not a strategy signal"),
     )
     connection.execute(
+        "UPDATE demo_bot_orders SET run_key=(SELECT run_key FROM demo_bot_state WHERE id=1), "
+        "strategy='execution_check' WHERE id=?", (cursor.lastrowid,)
+    )
+    connection.execute(
         "INSERT INTO demo_execution_checks(token,bot_order_id) VALUES(?,?)",
         (token, cursor.lastrowid),
     )
