@@ -352,6 +352,7 @@ except (OSError, json.JSONDecodeError):
 instrument_classes = {
     str(meta.get("instrument_id")): meta.get("asset_class", "Unclassified")
     for meta in instrument_mapping.values()
+    if isinstance(meta, dict)
 }
 portfolio = {}
 if portfolio_row and portfolio_row["status"] == "ok" and portfolio_row["mode"] == MODE:
