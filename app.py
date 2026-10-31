@@ -112,13 +112,25 @@ def load_mapping(cache_path, feed):
             mapping = {}
     else:
         mapping = {}
+    if not isinstance(mapping, dict):
+        mapping = {}
     wanted = DEFAULT_SYMBOLS[:LIMIT]
-    missing = [
-        symbol for symbol in wanted
-        if symbol not in mapping or not mapping[symbol].get("asset_class") or "is_currently_tradable" not in mapping[symbol]
-    ]
+    unresolved_raw = mapping.get("_unresolved_symbols", [])
+    unresolved = set(unresolved_raw) if isinstance(unresolved_raw, list) else set()
+    missing = []
+    for symbol in wanted:
+        meta = mapping.get(symbol)
+        if symbol not in unresolved and (
+            not isinstance(meta, dict)
+            or not meta.get("asset_class")
+            or "is_currently_tradable" not in meta
+        ):
+            missing.append(symbol)
     if missing:
-        mapping.update(feed.resolve_symbols(missing))
+        resolved = feed.resolve_symbols(missing)
+        unresolved.update(symbol for symbol in missing if symbol not in resolved)
+        mapping.update(resolved)
+        mapping["_unresolved_symbols"] = sorted(unresolved)
         cache_path.write_text(json.dumps(mapping, indent=2), encoding="utf-8")
     return {symbol: mapping[symbol] for symbol in wanted if symbol in mapping}
 
