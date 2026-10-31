@@ -78,8 +78,7 @@ class EtoroFeed:
                     break
             if index < len(symbols) - 1:
                 time.sleep(1.2)
-        if not found:
-            raise RuntimeError("No instruments resolved; check eToro API scopes/response schema")
+        # Unresolved symbols are cached by the caller; HTTP/API failures still raise.
         return found
 
     def fetch_rates(self, mapping):
