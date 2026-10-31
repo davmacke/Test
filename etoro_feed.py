@@ -55,7 +55,7 @@ class EtoroFeed:
         for index, symbol in enumerate(symbols):
             payload = self.get("/market-data/search", {
                 "internalSymbolFull": symbol,
-                "fields": "instrumentId,internalSymbolFull,displayname,marketId,internalAssetClassName,instrumentType,isCurrentlyTradable,isBuyEnabled,isOpen",
+                "fields": "instrumentId,internalSymbolFull,displayname,marketId,internalAssetClassName,instrumentType,isCurrentlyTradable,isBuyEnabled,isOpen,isExchangeOpen",
                 "pageSize": 5,
             })
             rows = payload.get("data", payload.get("results", payload.get("items", [])))
@@ -76,7 +76,10 @@ class EtoroFeed:
                         "asset_class": str(asset_class),
                         "is_currently_tradable": row.get("isCurrentlyTradable"),
                         "is_buy_enabled": row.get("isBuyEnabled"),
-                        "is_open": row.get("isOpen"),
+                        "is_open": row.get("isOpen") if row.get("isOpen") is not None else row.get("isExchangeOpen"),
+                        "open_status_source": "isOpen" if row.get("isOpen") is not None else (
+                            "isExchangeOpen" if row.get("isExchangeOpen") is not None else "unavailable"
+                        ),
                         "status_checked_at": datetime.now(timezone.utc).isoformat(),
                     }
                     break

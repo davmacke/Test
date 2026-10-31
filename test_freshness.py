@@ -97,6 +97,18 @@ class FreshnessTests(unittest.TestCase):
         self.assertIsNone(result["quote_ts"])
         self.assertIsNotNone(result["fetched_at"])
         self.assertEqual(result["last"], 99.5)
+    def test_explicit_exchange_status_fallback_and_known_block_priority(self):
+        feed = ef.EtoroFeed.__new__(ef.EtoroFeed)
+        row = {"instrumentId": 100063, "internalSymbolFull": "SOL", "isExchangeOpen": True,
+               "isBuyEnabled": True, "isCurrentlyTradable": True}
+        feed.get = lambda *args: {"items": [row]}
+        resolved = feed.resolve_symbols(["SOL"])["SOL"]
+        self.assertTrue(resolved["is_open"])
+        self.assertEqual(resolved["open_status_source"], "isExchangeOpen")
+        row["isOpen"] = False
+        self.assertFalse(feed.resolve_symbols(["SOL"])["SOL"]["is_open"])
+        self.assertEqual(dq.market_problem(dict(FRESH, is_open=None, is_currently_tradable=False), NOW),
+                         "Instrument not tradable")
     def test_cache_reuses_identity_but_removes_dynamic_flags(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder)/"cache.json"

@@ -57,9 +57,9 @@ def market_problem(meta, now=None):
     age = age_seconds(meta.get("status_checked_at"), now)
     if age is None or age < -5 or age > MAX_STATUS_AGE_SECONDS:
         return "Market status unavailable or stale"
-    for key, blocked in (("is_open", "Market closed"),
+    for key, blocked in (("is_currently_tradable", "Instrument not tradable"),
                          ("is_buy_enabled", "Buying disabled"),
-                         ("is_currently_tradable", "Instrument not tradable")):
+                         ("is_open", "Market closed")):
         flag = explicit_flag(meta.get(key))
         if flag is None:
             return "Market status unknown: " + key
