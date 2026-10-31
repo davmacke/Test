@@ -163,6 +163,11 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     if not client:
         return {"status": "WAITING", "message": "Waiting for a readable eToro demo portfolio."}
 
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(demo_bot_state)")}
+    if "cash_budget_usd" not in columns:
+        connection.execute("ALTER TABLE demo_bot_state ADD COLUMN cash_budget_usd REAL")
+        connection.commit()
+
     risk = portfolio_risk(portfolio, {
         str(meta.get("instrument_id")): meta.get("asset_class", "Unclassified")
         for meta in mapping.values()
@@ -177,13 +182,14 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         ends = (now + timedelta(hours=hours)).isoformat()
         start_unrealized = _float(client.get("unrealizedPnL", client.get("unrealisedPnL")), 0.0)
         start_realized = _float(client.get("closedPositionsNetProfit"), 0.0)
+        start_cash_budget = max(0.0, _float(risk.get("cash_usd"), 0.0))
         connection.execute(
             """INSERT INTO demo_bot_state
                (id,started_at,ends_at,status,start_unrealized_pnl,last_unrealized_pnl,
-                start_realized_pnl,last_realized_pnl,stop_reason)
-               VALUES(1,?,?,?, ?,?,?,?,?)""",
+                start_realized_pnl,last_realized_pnl,stop_reason,cash_budget_usd)
+               VALUES(1,?,?,?,?,?,?,?,?,?)""",
             (started, ends, "RUNNING", start_unrealized, start_unrealized,
-             start_realized, start_realized, ""),
+             start_realized, start_realized, "", start_cash_budget),
         )
         connection.commit()
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
@@ -199,6 +205,22 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     _sync_orders(connection, feed, portfolio, log)
     state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
     rows = connection.execute("SELECT * FROM demo_bot_orders ORDER BY id").fetchall()
+    available_cash = max(0.0, _float(risk.get("cash_usd"), 0.0))
+    budget_locked = any(
+        row["action"] == "open"
+        and row["status"] not in {"REJECTED", "CANCELLED", "CANCELED", "EXPIRED"}
+        for row in rows
+    )
+    if not budget_locked:
+        cash_budget = available_cash
+        connection.execute(
+            "UPDATE demo_bot_state SET cash_budget_usd=? WHERE id=1",
+            (cash_budget,),
+        )
+        connection.commit()
+        state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
+    else:
+        cash_budget = max(0.0, _float(state["cash_budget_usd"], available_cash))
     managed_open_pnl = sum(
         _float(row["pnl"]) for row in rows if row["status"] in {"OPEN", "CLOSING"}
     )
@@ -261,8 +283,8 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         active = [row for row in rows if row["status"] in ACTIVE_ORDER_STATES]
         order_limit = max(1, min(5, int(os.getenv("DEMO_MAX_ORDERS_PER_RUN", "5"))))
         position_limit = max(1, min(5, int(os.getenv("DEMO_MAX_OPEN_POSITIONS", "5"))))
-        max_order = max(10.0, min(100.0, float(os.getenv("DEMO_MAX_ORDER_USD", "50"))))
-        max_exposure = max_order * max(1, min(5, int(os.getenv("DEMO_MAX_OPEN_POSITIONS", "5"))))
+        max_order = max(10.0, cash_budget)
+        max_exposure = cash_budget
         opens = [row for row in rows if row["action"] == "open"]
         open_notional = sum(
             _float(row["amount_usd"]) for row in active
@@ -273,7 +295,6 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
             str(_id(position, "instrumentID", "instrumentId"))
             for position in (client.get("positions") or [])
         }
-        available_cash = max(0.0, risk["cash_usd"])
         quotes_by_symbol = {quote["symbol"]: quote for quote in quotes}
 
         if len(opens) < order_limit and len(active) < position_limit:
@@ -310,7 +331,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     continue
                 requested = _float(analysis.get("suggested_size_usd"))
                 amount = min(
-                    requested, max_order, available_cash * 0.1,
+                    requested, max_order, available_cash,
                     max(0.0, max_exposure - open_notional),
                 )
                 if amount < 10:
@@ -380,6 +401,11 @@ def _snapshot(connection, portfolio, state, bot_pnl):
         "account_unrealized_change": current_unrealized - _float(state["start_unrealized_pnl"]),
         "account_realized_change": current_realized - _float(state["start_realized_pnl"]),
         "bot_open_pnl": bot_pnl,
+        "cash_budget_usd": max(0.0, _float(state["cash_budget_usd"], 0.0)),
+        "bot_reserved_cash_usd": sum(
+            _float(row["amount_usd"]) for row in rows
+            if row["action"] == "open" and row["status"] in ACTIVE_ORDER_STATES
+        ),
         "orders": [dict(row) for row in rows],
         "message": state["stop_reason"] or "Demo-only automatic trading is active.",
     }

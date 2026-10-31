@@ -537,9 +537,10 @@ with feed_tab:
 with bot_tab:
     st.subheader("Demo-only overnight run")
     st.caption(
-        "Execution is hard-locked to eToro's demo order endpoint. The bot is long-only, 1x leverage, "
-        "up to 5 entries, up to 50 USD per entry, and stops after 8 hours. Each entry carries a broker-side "
-        "stop loss and take profit; only bot-opened positions are closed by signal or at run end."
+        "Execution is hard-locked to eToro's demo order endpoint. The bot is long-only at 1x leverage, "
+        "allows up to 5 entries, sizes each one from the portfolio risk budget, and caps total bot exposure "
+        "at available demo cash. Each entry carries a broker-side stop loss and take profit; only bot-opened "
+        "positions are closed by signal or at run end."
     )
     if demo_row:
         try:
@@ -552,6 +553,11 @@ with bot_tab:
     st.write(bot_status.get("message", ""))
     if bot_status.get("ends_at"):
         st.write(f"Run window: {bot_status.get('started_at')} to {bot_status.get('ends_at')} (UTC)")
+    if bot_status.get("cash_budget_usd") is not None:
+        st.write(
+            f"Bot cash budget: {bot_status['cash_budget_usd']:,.2f} USD · "
+            f"currently committed: {bot_status.get('bot_reserved_cash_usd', 0):,.2f} USD"
+        )
     if bot_status.get("stop_reason"):
         st.info(bot_status["stop_reason"])
     pnl_a, pnl_b, pnl_c = st.columns(3)
