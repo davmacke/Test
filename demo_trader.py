@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from analysis import portfolio_risk
+from data_quality import quote_problem, market_problem
 
 
 ACTIVE_ORDER_STATES = {"SUBMITTING", "UNKNOWN", "PENDING", "OPEN", "CLOSING", "CANCELLING"}
@@ -180,6 +181,9 @@ def _execution_check(connection, feed, log):
     quotes = feed.fetch_rates({"SOL": meta})
     price = _float(quotes[0].get("ask"))
     bid = _float(quotes[0].get("bid"))
+    problem = market_problem(meta) or quote_problem(quotes[0])
+    if problem:
+        raise RuntimeError("Execution check blocked: " + problem)
     if price <= 0 or bid <= 0 or (price - bid) / price > 0.02:
         raise RuntimeError("Execution check requires a usable SOL quote")
     fresh = feed.fetch_portfolio("demo")
@@ -224,6 +228,22 @@ def _execution_check(connection, feed, log):
             "http_status": getattr(getattr(error, "response", None), "status_code", None),
         }), flush=True)
         # Persisted request id prevents automatic resubmission after any ambiguity.
+
+
+
+def _evaluate_entry(feed, symbol, meta, quote, analysis):
+    """Refresh dynamic market flags for every buy candidate; never trust cached flags."""
+    if analysis.get("action") != "BUY CANDIDATE":
+        return "Strategy: " + str(analysis.get("action") or "analysis unavailable"), {}
+    try:
+        fresh = feed.resolve_symbols([symbol]).get(symbol)
+    except Exception as error:
+        return "Market status refresh failed: " + type(error).__name__, {}
+    if not fresh or fresh.get("instrument_id") != meta.get("instrument_id"):
+        return "Market status refresh returned no matching instrument", {}
+    now = _now()
+    reason = market_problem(fresh, now) or quote_problem(quote, now)
+    return reason, fresh
 
 
 def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
@@ -344,6 +364,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
             connection.commit()
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
 
+    entry_decisions = []
     if state["status"] == "RUNNING":
         if os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip():
             _execution_check(connection, feed, log)
@@ -385,29 +406,35 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 instrument_id = int(meta["instrument_id"])
                 quote = quotes_by_symbol.get(symbol) or {}
                 if previous or str(instrument_id) in held_instruments:
-                    continue
-                # Unknown market flags are not safe to trade; require explicit true values.
-                if not _flag(meta.get("is_currently_tradable")):
-                    continue
-                if not _flag(meta.get("is_buy_enabled")):
-                    continue
-                if not _flag(meta.get("is_open")):
+                    entry_decisions.append({"Symbol": symbol, "Signal": "Not checked",
+                                            "Decision": "Previously attempted" if previous else "Already held"})
                     continue
                 signal_row = connection.execute(
                     "SELECT payload FROM market_analysis WHERE symbol=? AND status='ok'",
                     (symbol,),
                 ).fetchone()
-                if not signal_row:
-                    continue
                 try:
-                    analysis = json.loads(signal_row["payload"])
+                    analysis = json.loads(signal_row["payload"]) if signal_row else {}
                 except (TypeError, json.JSONDecodeError):
-                    continue
-                if analysis.get("action") != "BUY CANDIDATE":
+                    analysis = {}
+                reason, fresh_meta = _evaluate_entry(feed, symbol, meta, quote, analysis)
+                decision = {
+                    "Symbol": symbol, "Signal": analysis.get("action", "Unavailable"),
+                    "Decision": reason or "Data checks passed",
+                    "Broker timestamp": quote.get("quote_ts"),
+                    "Fetched at": quote.get("fetched_at"),
+                    "Status checked": fresh_meta.get("status_checked_at"),
+                    "Market open": fresh_meta.get("is_open"),
+                    "Buying enabled": fresh_meta.get("is_buy_enabled"),
+                    "Tradable": fresh_meta.get("is_currently_tradable"),
+                }
+                entry_decisions.append(decision)
+                if reason:
                     continue
                 price = _float(quote.get("ask") or quote.get("last"))
                 stop_gap = _float(analysis.get("stop_gap_pct"))
                 if price <= 0 or stop_gap <= 0 or stop_gap > 8:
+                    decision["Decision"] = "Risk sizing: invalid price or stop gap outside limits"
                     continue
                 requested = _float(analysis.get("suggested_size_usd"))
                 amount = min(
@@ -415,6 +442,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     max(0.0, max_exposure - open_notional),
                 )
                 if amount < 10:
+                    decision["Decision"] = "Risk sizing: cash or remaining budget below minimum"
                     continue
                 stop_rate = price * (1 - stop_gap / 100)
                 target_rate = price * (1 + 2 * stop_gap / 100)
@@ -448,24 +476,29 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                         order_id=_id(result, "orderId", "orderID"),
                         message="Submitted to eToro demo; awaiting final order status",
                     )
+                    decision["Decision"] = "Demo order submitted"
                     log("INFO", f"Submitted demo BUY for {symbol}, amount {amount:.2f} USD")
                 except Exception as error:
                     _save_order(
                         connection, cursor.lastrowid, "UNKNOWN",
                         message=f"Submission outcome unknown: {type(error).__name__}: {error}",
                     )
+                    decision["Decision"] = "Submission outcome unknown; automatic retry blocked"
                     log("ERROR", f"Demo order outcome unknown for {symbol}: {type(error).__name__}")
                 break
+        else:
+            entry_decisions.append({"Symbol": "All", "Signal": "Not checked",
+                                    "Decision": "Run entry limit or open position limit reached"})
 
     state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
     rows = connection.execute("SELECT * FROM demo_bot_orders ORDER BY id").fetchall()
     managed_open_pnl = sum(
         _float(row["pnl"]) for row in rows if row["status"] in {"OPEN", "CLOSING"}
     )
-    return _snapshot(connection, portfolio, state, managed_open_pnl)
+    return _snapshot(connection, portfolio, state, managed_open_pnl, entry_decisions)
 
 
-def _snapshot(connection, portfolio, state, bot_pnl):
+def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
     rows = connection.execute(
         "SELECT symbol,action,status,amount_usd,entry_price,stop_rate,target_rate,position_id,pnl,message,created_at "
         "FROM demo_bot_orders ORDER BY id DESC"
@@ -473,7 +506,18 @@ def _snapshot(connection, portfolio, state, bot_pnl):
     client = (portfolio or {}).get("clientPortfolio") or {}
     current_unrealized = _float(client.get("unrealizedPnL", client.get("unrealisedPnL")), 0.0)
     current_realized = _float(client.get("closedPositionsNetProfit"), state["last_realized_pnl"])
+    decisions = decisions or []
+    counts = {}
+    for decision in decisions:
+        reason = decision["Decision"]
+        counts[reason] = counts.get(reason, 0) + 1
+    print("DEMO_BOT_STATUS " + json.dumps({
+        "status": state["status"], "decision_counts": counts,
+        "candidate_checks": [d for d in decisions if d.get("Signal") == "BUY CANDIDATE"],
+        "orders": [{"symbol": r["symbol"], "status": r["status"]} for r in rows],
+    }), flush=True)
     return {
+        "entry_decisions": decisions,
         "status": state["status"],
         "started_at": state["started_at"],
         "ends_at": state["ends_at"],
