@@ -463,6 +463,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     "Fetched at": quote.get("fetched_at"),
                     "Status checked": fresh_meta.get("status_checked_at"),
                     "Market open": fresh_meta.get("is_open"),
+                    "Open status source": fresh_meta.get("open_status_source", "unavailable"),
                     "Buying enabled": fresh_meta.get("is_buy_enabled"),
                     "Tradable": fresh_meta.get("is_currently_tradable"),
                 }
