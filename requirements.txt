@@ -2,3 +2,5 @@ streamlit>=1.41,<2
 pandas>=2.2,<3
 requests>=2.32,<3
 streamlit-autorefresh>=1.0.1,<2
+
+statsmodels==0.15.0
