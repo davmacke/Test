@@ -1,6 +1,9 @@
 import json
 import os
 import sqlite3
+import subprocess
+import sys
+import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -375,6 +378,19 @@ if not hasattr(st, "_market_worker_started"):
     st._market_worker_started = True
     threading.Thread(target=worker, daemon=True, name="market-feed").start()
 
+# A separate low-priority, read-only process keeps historical replay out of the trading loop.
+backtest_id = os.getenv("BACKTEST_RUN_ID", "").strip()
+backtest_folder = None
+if backtest_id and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", backtest_id):
+    backtest_folder = DB.parent / "backtests" / backtest_id
+    previous_job = getattr(st, "_backtest_process", None)
+    if previous_job is None or getattr(st, "_backtest_id", None) != backtest_id:
+        st._backtest_id = backtest_id
+        st._backtest_process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).with_name("backtest_runner.py")), str(DB.resolve()), backtest_id],
+            cwd=str(Path(__file__).resolve().parent),
+        )
+
 st_autorefresh(interval=POLL * 1000, key="dashboard-auto-refresh")
 st.caption(
     f"Universe: up to {LIMIT} instruments · Refresh: {POLL}s · "
@@ -466,8 +482,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest"]
 )
 
 with signals_tab:
@@ -720,3 +736,65 @@ with bot_tab:
     st.warning(
         "This run is for observing the rules, not predicting returns. Demo fills and overnight results do not guarantee live performance."
     )
+
+
+with backtest_tab:
+    st.subheader("Historical strategy replay")
+    st.caption("A read-only historical process runs alongside demo trading. Results are simulated, "
+               "not eToro fills or a promise of income. Base and stress scenarios use assumed costs.")
+    if backtest_folder is None:
+        st.info("No historical backtest has been configured.")
+    else:
+        status_file = backtest_folder / "status.json"
+        report_file = backtest_folder / "report.json"
+        if status_file.exists():
+            try:
+                job_status = json.loads(status_file.read_text(encoding="utf-8"))
+                st.write(f"Status: **{job_status.get('phase', 'UNKNOWN')}**")
+                st.caption(f"Job {backtest_id} · updated {job_status.get('updated_at')}")
+                if "done" in job_status:
+                    st.write(f"Progress: {job_status['done']} / {job_status.get('total', '?')}")
+                if job_status.get("error_type"):
+                    st.error(f"Backtest failed: {job_status['error_type']}. See Render backtest logs.")
+            except (OSError, ValueError):
+                st.info("Backtest status is being updated.")
+        else:
+            st.info("Waiting for the historical worker to initialize.")
+        if report_file.exists():
+            try:
+                report_text = report_file.read_text(encoding="utf-8")
+                report = json.loads(report_text)
+                st.caption(f"Historical snapshot: {report['as_of']} · initial simulated capital: "
+                           f"{report['initial_capital_usd']:,.2f} USD per strategy/window")
+                summaries = pd.DataFrame(report["summaries"])
+                for window, label in [("latest_25pct", "Latest 25% · separate evaluation"),
+                                      ("earlier_75pct", "Earlier 75% · historical comparison")]:
+                    st.markdown(f"**{label}**")
+                    frame = summaries[summaries["window"] == window].drop(
+                        columns=["realized_weekly_pnl_usd"], errors="ignore")
+                    st.dataframe(frame, use_container_width=True, hide_index=True)
+                st.markdown("**SPY buy-and-hold comparator · fully invested**")
+                st.dataframe(pd.DataFrame(report["benchmarks"]), use_container_width=True, hide_index=True)
+                curve_rows = []
+                for key, rows in report["curves"].items():
+                    if key.startswith("latest_25pct|") and key.endswith("|base"):
+                        for row in rows:
+                            curve_rows.append({"Date": row["date"], "Strategy": key.split("|")[1],
+                                               "Equity USD": row["equity"]})
+                if curve_rows:
+                    chart = pd.DataFrame(curve_rows).pivot(index="Date", columns="Strategy", values="Equity USD")
+                    st.line_chart(chart)
+                with st.expander("Coverage and modeling assumptions"):
+                    for note in report["assumptions"]:
+                        st.write("• " + note)
+                    st.write("Symbols skipped:", report.get("data_failures", {}))
+                    st.dataframe(pd.DataFrame([{"Symbol": s, **v} for s,v in report["coverage"].items()]),
+                                 use_container_width=True, hide_index=True)
+                st.download_button("Download full backtest report", report_text,
+                                   file_name=f"backtest-{backtest_id}.json", mime="application/json")
+                trades = [{"Window / strategy / costs": key, **trade}
+                          for key, rows in report["trades"].items() for trade in rows]
+                st.download_button("Download simulated trades", pd.DataFrame(trades).to_csv(index=False),
+                                   file_name=f"backtest-trades-{backtest_id}.csv", mime="text/csv")
+            except (OSError, ValueError, KeyError):
+                st.warning("The backtest report could not be read. Check the backtest worker status.")
