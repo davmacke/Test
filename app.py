@@ -391,6 +391,17 @@ if backtest_id and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", backtest_id):
             cwd=str(Path(__file__).resolve().parent),
         )
 
+research_id = os.getenv("RESEARCH_RUN_ID", "").strip()
+research_folder = None
+if research_id and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", research_id):
+    research_folder = DB.parent / "research" / research_id
+    if getattr(st, "_research_id", None) != research_id:
+        st._research_id = research_id
+        st._research_process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).with_name("research_runner.py")), str(DB.resolve()), research_id],
+            cwd=str(Path(__file__).resolve().parent),
+        )
+
 st_autorefresh(interval=POLL * 1000, key="dashboard-auto-refresh")
 st.caption(
     f"Universe: up to {LIMIT} instruments · Refresh: {POLL}s · "
@@ -482,8 +493,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research"]
 )
 
 with signals_tab:
@@ -803,3 +814,71 @@ with backtest_tab:
                                    file_name=f"backtest-trades-{backtest_id}.csv", mime="text/csv")
             except (OSError, ValueError, KeyError):
                 st.warning("The backtest report could not be read. Check the backtest worker status.")
+
+
+with research_tab:
+    st.subheader("Three-strategy research · £1,250")
+    st.caption("Independent simulated accounts for filtered mean reversion, cointegrated pairs and a "
+               "walk-forward neural network. These strategies do not submit broker orders. "
+               "The 10% monthly return and £25 withdrawal targets are measured, not promised.")
+    if research_folder is None:
+        st.info("No three-strategy research run has been configured.")
+    else:
+        status_path = research_folder / "status.json"
+        report_path = research_folder / "report.json"
+        if status_path.exists():
+            try:
+                research_status = json.loads(status_path.read_text(encoding="utf-8"))
+                st.write(f"Status: **{research_status.get('phase', 'UNKNOWN')}**")
+                st.caption(f"Job {research_id} · updated {research_status.get('updated_at')}")
+                if "done" in research_status:
+                    st.write(f"Progress: {research_status['done']} / {research_status.get('total', '?')}")
+                if research_status.get("error_type"):
+                    st.error(f"Research failed: {research_status['error_type']}. Check Render research logs.")
+            except (OSError, ValueError):
+                st.info("Research status is being updated.")
+        else:
+            st.info("Waiting for the research worker.")
+        if report_path.exists():
+            try:
+                research_text = report_path.read_text(encoding="utf-8")
+                study = json.loads(research_text)
+                st.caption(f"Frozen history: {study['as_of']} · GBPUSD {study['gbpusd']:.5f} "
+                           f"at {study['fx_date']} · initial £{study['initial_gbp']:,.2f} per comparison")
+                st.warning("Cost profiles are product scenarios, not verified account-specific quotes. "
+                           "Pairs use CFD costs for both legs even in the underlying-ETF comparison.")
+                overview = pd.DataFrame(study["summaries"])
+                for window,label in [("latest_25pct","Latest dates · separate evaluation"),
+                                     ("earlier_75pct","Earlier historical comparison")]:
+                    st.markdown(f"**{label}**")
+                    st.dataframe(overview[overview["window"] == window], use_container_width=True, hide_index=True)
+                monthly_rows = [{"Comparison": key, **month}
+                                for key, rows in study["monthly"].items() for month in rows]
+                st.markdown("**Monthly returns and simulated profit withdrawals**")
+                st.dataframe(pd.DataFrame(monthly_rows), use_container_width=True, hide_index=True)
+                st.markdown("**SPY buy-and-hold · fully invested, no withdrawals**")
+                st.dataframe(pd.DataFrame(study["benchmarks"]), use_container_width=True, hide_index=True)
+                curve_rows = [{"Date": row["date"], "Strategy": key.split("|")[1],
+                               "Economic wealth GBP": row["economic_wealth_gbp"]}
+                              for key, rows in study["curves"].items()
+                              if key.startswith("latest_25pct|") and key.endswith("|underlying_base")
+                              for row in rows]
+                if curve_rows:
+                    chart = pd.DataFrame(curve_rows).pivot(index="Date",columns="Strategy",values="Economic wealth GBP")
+                    st.line_chart(chart)
+                with st.expander("Rules, assumptions and model diagnostics"):
+                    for name,rule in study["rules"].items():
+                        st.write(f"{name}: {rule}")
+                    for note in study["assumptions"]:
+                        st.write("• " + note)
+                    st.write("Neural prediction diagnostics:", study["neural_diagnostics"])
+                    st.dataframe(pd.DataFrame(study["folds"]), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(study["pair_tests"]), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame([{"Symbol": s, **v} for s,v in study["coverage"].items()]),
+                                 use_container_width=True, hide_index=True)
+                st.download_button("Download three-strategy research report", research_text,
+                                   file_name=f"research-{research_id}.json",mime="application/json")
+                st.download_button("Download research monthly results", pd.DataFrame(monthly_rows).to_csv(index=False),
+                                   file_name=f"research-monthly-{research_id}.csv",mime="text/csv")
+            except (OSError,ValueError,KeyError):
+                st.warning("The research report could not be read. Check the worker status.")
