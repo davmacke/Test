@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from analysis import portfolio_risk
 from sector_rotation import STRATEGY as ROTATION_STRATEGY, plan_rotation_entry
 from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
-from data_quality import quote_problem, market_problem
+from data_quality import quote_problem, market_problem, utc_timestamp
 
 
 ACTIVE_ORDER_STATES = {"SUBMITTING", "UNKNOWN", "PENDING", "OPEN", "CLOSING", "CANCELLING"}
@@ -288,6 +288,11 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     now = _now()
     requested_run_key = os.getenv("DEMO_RUN_ID", "").strip()
     hours = max(1, min(12, int(os.getenv("DEMO_RUN_HOURS", "8"))))
+    deadline_text = os.getenv("DEMO_RUN_ENDS_AT", "").strip()
+    deadline = utc_timestamp(deadline_text) if deadline_text else None
+    if deadline_text and deadline is None:
+        raise ValueError("DEMO_RUN_ENDS_AT must be a timezone-aware ISO timestamp")
+    requested_end = (deadline or now + timedelta(hours=hours)).isoformat()
     state = connection.execute(
         "SELECT * FROM demo_bot_state WHERE id=1"
     ).fetchone()
@@ -302,7 +307,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
             """UPDATE demo_bot_state SET started_at=?,ends_at=?,status='RUNNING',
                start_unrealized_pnl=?,last_unrealized_pnl=?,start_realized_pnl=?,
                last_realized_pnl=?,stop_reason='',cash_budget_usd=?,run_key=? WHERE id=1""",
-            (now.isoformat(), (now+timedelta(hours=hours)).isoformat(),
+            (now.isoformat(), requested_end,
              _float(client.get("unrealizedPnL", client.get("unrealisedPnL"))),
              _float(client.get("unrealizedPnL", client.get("unrealisedPnL"))),
              _float(client.get("closedPositionsNetProfit")), _float(client.get("closedPositionsNetProfit")),
@@ -312,7 +317,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
     if state is None:
         started = now.isoformat()
-        ends = (now + timedelta(hours=hours)).isoformat()
+        ends = requested_end
         start_unrealized = _float(client.get("unrealizedPnL", client.get("unrealisedPnL")), 0.0)
         start_realized = _float(client.get("closedPositionsNetProfit"), 0.0)
         start_cash_budget = max(0.0, _float(risk.get("cash_usd"), 0.0))
@@ -324,6 +329,13 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
             (started, ends, "RUNNING", start_unrealized, start_unrealized,
              start_realized, start_realized, "", start_cash_budget, requested_run_key or "legacy"),
         )
+        connection.commit()
+        state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
+
+    # Extend only the explicitly selected active run; never restart a stopped run.
+    if (deadline is not None and requested_run_key and state["run_key"] == requested_run_key
+            and state["status"] == "RUNNING" and state["ends_at"] != requested_end):
+        connection.execute("UPDATE demo_bot_state SET ends_at=? WHERE id=1", (requested_end,))
         connection.commit()
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
 
@@ -370,7 +382,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         connection.commit()
         state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
     if state["status"] == "RUNNING" and now >= stop_at:
-        stop_reason = "Eight-hour demo run window ended"
+        stop_reason = "Configured demo run window ended"
         connection.execute(
             "UPDATE demo_bot_state SET status='STOPPING',stop_reason=? WHERE id=1",
             (stop_reason,),
