@@ -115,7 +115,7 @@ def calibrate_pair(history,a,b):
         _,p,_=coint(la,lb,trend="c",maxlag=1,autolag=None)
     rho=np.linalg.lstsq(np.column_stack([spread[:-1],np.ones(len(spread)-1)]),spread[1:],rcond=None)[0][0]
     half=-math.log(2)/math.log(rho) if 0<rho<1 else math.inf
-    info={"p_value":float(p),"half_life_sessions":float(half) if math.isfinite(half) else None,
+    info={"p_value":float(p) if math.isfinite(p) else None,"half_life_sessions":float(half) if math.isfinite(half) else None,
           "beta":float(beta),"last_training_date":dates[-1]}
     if not math.isfinite(p) or p>=.05/len(PAIRS) or not 1<=half<=30:
         return None,{**info,"reason":"Cointegration or half-life filter failed"}
