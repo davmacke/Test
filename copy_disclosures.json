@@ -1,0 +1,2127 @@
+{
+  "version": 1,
+  "disclosure_dataset_as_of": "2026-09-07",
+  "test_end": "2026-08-31",
+  "pelosi_source": "https://github.com/LuxAlgo/market-trackers-data",
+  "pelosi_license": "CC0",
+  "pelosi": [
+    {
+      "id": "house:20022320:0",
+      "filedAt": "2023-01-25",
+      "transactedAt": "2023-01-20",
+      "ticker": "RBLX",
+      "assetType": "option",
+      "assetDescription": "Roblox Corporation Class A (RBLX) [OP] F S: New D: 100 call options purchased 12/20/21 with a strike price of $100 and an expiration date of 1/20/23 expired with no value. C: 100 call options purchased 12/20/21 with a strike price of $100 and an expiration date of 1/20/23 expired with no value for a total loss of $303,001.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 0,
+        "text": "$1.00"
+      },
+      "needsReview": true,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20022320.pdf"
+    },
+    {
+      "id": "house:20022664:1",
+      "filedAt": "2023-04-06",
+      "transactedAt": "2023-03-09",
+      "ticker": null,
+      "assetType": "bond",
+      "assetDescription": "REOF XXV, LLC [AB] F S: New D: Investment in LLC which is acquiring and restoring a luxury hotel property in San Francisco, CA.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20022664.pdf"
+    },
+    {
+      "id": "house:20022664:0",
+      "filedAt": "2023-04-06",
+      "transactedAt": "2023-03-17",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. (AAPL) [ST] F S: New D: Exercised 100 call options purchased 5/13/22 (10,000 shares) at a strike price of $80 with an expiration date of 3/17/23.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20022664.pdf"
+    },
+    {
+      "id": "house:20023080:0",
+      "filedAt": "2023-06-06",
+      "transactedAt": "2023-05-08",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. (AAPL) [ST] F S: New D: Contribution of 2,900 shares held personally to Trinity College.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20023080.pdf"
+    },
+    {
+      "id": "house:20023192:0",
+      "filedAt": "2023-06-22",
+      "transactedAt": "2023-06-15",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. (AAPL) [ST] F S: New D: Exercised 50 call options purchased 5/24/22 (5,000 shares) at a strike price of $80 with an expiration date of 6/16/23.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20023192.pdf"
+    },
+    {
+      "id": "house:20023192:1",
+      "filedAt": "2023-06-22",
+      "transactedAt": "2023-06-15",
+      "ticker": "MSFT",
+      "assetType": "stock",
+      "assetDescription": "Microsoft Corporation (MSFT) [ST] F S: New D: Exercised 50 call options purchased 5/24/22 (5,000 shares) at a strike price of $180 with an expiration date of 6/16/23.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20023192.pdf"
+    },
+    {
+      "id": "house:20024186:0",
+      "filedAt": "2023-12-21",
+      "transactedAt": "2023-11-22",
+      "ticker": "NVDA",
+      "assetType": "option",
+      "assetDescription": "NVIDIA Corporation (NVDA) [OP] F S: New D: Purchased 50 call options with a strike price of $120 and an expiration date of 12/20/24.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/20024186.pdf"
+    },
+    {
+      "id": "house:20024542:0",
+      "filedAt": "2024-02-23",
+      "transactedAt": "2024-02-12",
+      "ticker": "PANW",
+      "assetType": "option",
+      "assetDescription": "Palo Alto Networks, Inc. (PANW) [OP] F S: New D: Purchased 50 call options with a strike price of $200 and an expiration date of 1/17/25.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20024542.pdf"
+    },
+    {
+      "id": "house:20024542:1",
+      "filedAt": "2024-02-23",
+      "transactedAt": "2024-02-21",
+      "ticker": "PANW",
+      "assetType": "option",
+      "assetDescription": "Palo Alto Networks, Inc. (PANW) [OP] F S: New D: Purchased 20 call options with a strike price of $200 and an expiration date of 1/17/25.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 100001,
+        "max": 250000,
+        "text": "$100,001 - $250,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20024542.pdf"
+    },
+    {
+      "id": "house:20024625:0",
+      "filedAt": "2024-03-21",
+      "transactedAt": "2024-03-04",
+      "ticker": null,
+      "assetType": "bond",
+      "assetDescription": "Forge Investments, LLC [AB] F S: New D: Investment in fund that owns Databricks stock. Databricks is a San Francisco engineering and analytic software company based on AI technology.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20024625.pdf"
+    },
+    {
+      "id": "house:20025368:0",
+      "filedAt": "2024-07-02",
+      "transactedAt": "2024-06-24",
+      "ticker": "AVGO",
+      "assetType": "option",
+      "assetDescription": "Broadcom Inc. - Common Stock (AVGO) [OP] F S: New D: Purchased 20 call options with a strike price of $800 and an expiration date of 6/20/25.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025368.pdf"
+    },
+    {
+      "id": "house:20025368:2",
+      "filedAt": "2024-07-02",
+      "transactedAt": "2024-06-24",
+      "ticker": "TSLA",
+      "assetType": "stock",
+      "assetDescription": "Tesla, Inc. - Common Stock (TSLA) [ST] F S: New D: Sold 2,500 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025368.pdf"
+    },
+    {
+      "id": "house:20025368:1",
+      "filedAt": "2024-07-02",
+      "transactedAt": "2024-06-26",
+      "ticker": "NVDA",
+      "assetType": "stock",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [ST] F S: New D: Purchased 10,000 shares.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025368.pdf"
+    },
+    {
+      "id": "house:20025368:3",
+      "filedAt": "2024-07-02",
+      "transactedAt": "2024-07-01",
+      "ticker": "V",
+      "assetType": "stock",
+      "assetDescription": "Visa Inc. (V) [ST] F S: New D: Sold 2,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025368.pdf"
+    },
+    {
+      "id": "house:20025535:0",
+      "filedAt": "2024-07-30",
+      "transactedAt": "2024-07-26",
+      "ticker": "MSFT",
+      "assetType": "stock",
+      "assetDescription": "Microsoft Corporation - Common Stock (MSFT) [ST] F S: New D: Sold 5,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025535.pdf"
+    },
+    {
+      "id": "house:20025535:1",
+      "filedAt": "2024-07-30",
+      "transactedAt": "2024-07-26",
+      "ticker": "NVDA",
+      "assetType": "stock",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [ST] F S: New D: Purchased 10,000 shares.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025535.pdf"
+    },
+    {
+      "id": "house:20025819:0",
+      "filedAt": "2024-09-11",
+      "transactedAt": "2024-08-13",
+      "ticker": null,
+      "assetType": "bond",
+      "assetDescription": "REOF XXVI, LLC [AB] F S: New D: Investment in LLC which is acquiring and managing a commercial office property at 631 Howard Street in San Francisco, CA.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20025819.pdf"
+    },
+    {
+      "id": "house:20026590:4",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2024-12-20",
+      "ticker": "NVDA",
+      "assetType": "stock",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [ST] F S: New D: Exercised 500 call options purchased 11/22/23 (50,000 shares) at a strike price of $12 with an expiration date of 12/20/24.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:6",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2024-12-20",
+      "ticker": "PANW",
+      "assetType": "stock",
+      "assetDescription": "Palo Alto Networks, Inc. (PANW) [ST] F S: New D: Exercised 140 call options purchased 2/12/24 & 2/21/24 (14,000 shares) at a strike price of $100 with an expiration date of 12/20/24.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:2",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2024-12-31",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. - Common Stock (AAPL) [ST] F S: New D: Sold 31,600 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 5000001,
+        "max": 25000000,
+        "text": "$5,000,001 - $25,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:3",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2024-12-31",
+      "ticker": "NVDA",
+      "assetType": "stock",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [ST] F S: New D: Sold 10,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:0",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2025-01-14",
+      "ticker": "GOOGL",
+      "assetType": "option",
+      "assetDescription": "Alphabet Inc. - Class A Common Stock (GOOGL) [OP] F S: New D: Purchased 50 call options with a strike price of $150 and an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:1",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2025-01-14",
+      "ticker": "AMZN",
+      "assetType": "option",
+      "assetDescription": "Amazon.com, Inc. - Common Stock (AMZN) [OP] F S: New D: Purchased 50 call options with a strike price of $150 and an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:5",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2025-01-14",
+      "ticker": "NVDA",
+      "assetType": "option",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [OP] F S: New D: Purchased 50 call options with a strike price of $80 and an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:7",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2025-01-14",
+      "ticker": "TEM",
+      "assetType": "option",
+      "assetDescription": "Tempus AI, Inc. - Class A Common Stock (TEM) [OP] F S: New D: Purchased 50 call options with a strike price of $20 and an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 50001,
+        "max": 100000,
+        "text": "$50,001 - $100,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20026590:8",
+      "filedAt": "2025-01-17",
+      "transactedAt": "2025-01-14",
+      "ticker": "VST",
+      "assetType": "option",
+      "assetDescription": "Vistra Corp. Common Stock (VST) [OP] F S: New D: Purchased 50 call options with a strike price of $50 and an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20026590.pdf"
+    },
+    {
+      "id": "house:20030630:0",
+      "filedAt": "2025-07-09",
+      "transactedAt": "2025-06-20",
+      "ticker": "AVGO",
+      "assetType": "stock",
+      "assetDescription": "Broadcom Inc. - Common Stock (AVGO) [ST] F S: New D: Exercised 200 call options purchased 6/24/24 (20,000 shares) at a strike price of $80 with an expiration date of 6/20/25.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20030630.pdf"
+    },
+    {
+      "id": "house:20030630:1",
+      "filedAt": "2025-07-09",
+      "transactedAt": "2025-06-20",
+      "ticker": null,
+      "assetType": "other",
+      "assetDescription": "Matthews International Mutual Fund [OT] F S: New L: US D: Sale of 2,822 units. C: Loss of $28,948 on sale.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 15001,
+        "max": 50000,
+        "text": "$15,001 - $50,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20030630.pdf"
+    },
+    {
+      "id": "house:20033337:0",
+      "filedAt": "2025-10-24",
+      "transactedAt": "2025-10-22",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. - Common Stock (AAPL) [ST] F S: New D: Contribution of 382 shares held personally to Trinity University in Washington, DC.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 100001,
+        "max": 250000,
+        "text": "$100,001 - $250,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/20033337.pdf"
+    },
+    {
+      "id": "house:20033725:11",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-24",
+      "ticker": "NVDA",
+      "assetType": "stock",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [ST] F S: New D: Sold 20,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:5",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-24",
+      "ticker": "AMZN",
+      "assetType": "stock",
+      "assetDescription": "Amazon.com, Inc. - Common Stock (AMZN) [ST] F S: New D: Sold 20,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:7",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-24",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. - Common Stock (AAPL) [ST] F S: New D: Sold 45,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 5000001,
+        "max": 25000000,
+        "text": "$5,000,001 - $25,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:10",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "NVDA",
+      "assetType": "option",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [OP] F S: New D: Purchased 20 call options with a strike price of $100 and an expiration date of 1/15/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 100001,
+        "max": 250000,
+        "text": "$100,001 - $250,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:13",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "PYPL",
+      "assetType": "stock",
+      "assetDescription": "PayPal Holdings, Inc. - Common Stock (PYPL) [ST] F S: New D: Sold 5,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:17",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "DIS",
+      "assetType": "stock",
+      "assetDescription": "Walt Disney Company (DIS) [ST] F S: New D: Sold 10,000 shares.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:2",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "GOOGL",
+      "assetType": "option",
+      "assetDescription": "Alphabet Inc. - Class A Common Stock (GOOGL) [OP] F S: New D: Purchased 20 call options with a strike price of $150 and an expiration date of 1/15/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:3",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "GOOGL",
+      "assetType": "stock",
+      "assetDescription": "Alphabet Inc. - Class A Common Stock (GOOGL) [ST] F S: New D: Contribution of 7,704 shares held personally to Donor-Advised Fund.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:4",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "AMZN",
+      "assetType": "option",
+      "assetDescription": "Amazon.com, Inc. - Common Stock (AMZN) [OP] F S: New D: Purchased 20 call options with a strike price of $120 and an expiration date of 1/15/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 100001,
+        "max": 250000,
+        "text": "$100,001 - $250,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:8",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "AAPL",
+      "assetType": "option",
+      "assetDescription": "Apple Inc. - Common Stock (AAPL) [OP] F S: New D: Purchased 20 call options with a strike price of $100 and an expiration date of 1/15/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:9",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2025-12-30",
+      "ticker": "AAPL",
+      "assetType": "stock",
+      "assetDescription": "Apple Inc. - Common Stock (AAPL) [ST] F S: New D: Contribution of 28,200 shares to Donor-Advised Fund.",
+      "side": "sell",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 5000001,
+        "max": 25000000,
+        "text": "$5,000,001 - $25,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:15",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-02",
+      "ticker": "VSNT",
+      "assetType": "stock",
+      "assetDescription": "Versant Media Group, Inc. - Class A Common Stock (VSNT) [ST] F S: New D: 776 shares and cash in lieu received as a result of spinoff from Comcast Corporation. No shares of Comcast were surrendered as a result of the spinoff.",
+      "side": "exchange",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 0,
+        "text": "$15.00"
+      },
+      "needsReview": true,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:0",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-16",
+      "ticker": "AB",
+      "assetType": "bond",
+      "assetDescription": "AllianceBernstein Holding L.P. Units (AB) [AB] F S: New D: Purchased 25,000 shares.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:1",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-16",
+      "ticker": "GOOGL",
+      "assetType": "stock",
+      "assetDescription": "Alphabet Inc. - Class A Common Stock (GOOGL) [ST] F S: New D: Exercised 50 call options purchased 1/14/25 (5,000 shares) at a strike price of $150 with an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:12",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-16",
+      "ticker": "NVDA",
+      "assetType": "stock",
+      "assetDescription": "NVIDIA Corporation - Common Stock (NVDA) [ST] F S: New D: Exercised 50 call options purchased 1/14/25 (5,000 shares) at a strike price of $80 with an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:14",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-16",
+      "ticker": "TEM",
+      "assetType": "stock",
+      "assetDescription": "Tempus AI, Inc. - Class A Common Stock (TEM) [ST] F S: New D: Exercised 50 call options purchased 1/14/25 (5,000 shares) at a strike price of $20 with an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 50001,
+        "max": 100000,
+        "text": "$50,001 - $100,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:16",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-16",
+      "ticker": "VST",
+      "assetType": "stock",
+      "assetDescription": "Vistra Corp. Common Stock (VST) [ST] F S: New D: Exercised 50 call options purchased 1/14/25 (5,000 shares) at a strike price of $50 with an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 100001,
+        "max": 250000,
+        "text": "$100,001 - $250,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20033725:6",
+      "filedAt": "2026-01-23",
+      "transactedAt": "2026-01-16",
+      "ticker": "AMZN",
+      "assetType": "stock",
+      "assetDescription": "Amazon.com, Inc. - Common Stock (AMZN) [ST] F S: New D: Exercised 50 call options purchased 1/14/25 (5,000 shares) at a strike price of $150 with an expiration date of 1/16/26.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033725.pdf"
+    },
+    {
+      "id": "house:20034836:0",
+      "filedAt": "2026-06-23",
+      "transactedAt": "2026-05-29",
+      "ticker": "INTC",
+      "assetType": "option",
+      "assetDescription": "Intel Corporation - Common Stock (INTC) [OP] F S: New D: Purchased 200 call options with a strike price of $50 and an expiration date of 3/19/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034836.pdf"
+    },
+    {
+      "id": "house:20034836:1",
+      "filedAt": "2026-06-23",
+      "transactedAt": "2026-05-29",
+      "ticker": "UBER",
+      "assetType": "option",
+      "assetDescription": "Uber Technologies, Inc. Common Stock (UBER) [OP] F S: New D: Purchased 200 call options with a strike price of $50 and an expiration date of 3/19/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034836.pdf"
+    },
+    {
+      "id": "house:20035143:0",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-24",
+      "ticker": "BE",
+      "assetType": "stock",
+      "assetDescription": "Bloom Energy Corporation Class A Common Stock (BE) [ST] F S: New D: Purchased 10,000 shares.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    },
+    {
+      "id": "house:20035143:1",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-24",
+      "ticker": "BE",
+      "assetType": "option",
+      "assetDescription": "Bloom Energy Corporation Class A Common Stock (BE) [OP] F S: New D: Purchased 100 call options with a strike price of $100 and an expiration date of 6/17/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 1000001,
+        "max": 5000000,
+        "text": "$1,000,001 - $5,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    },
+    {
+      "id": "house:20035143:4",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-24",
+      "ticker": "INTC",
+      "assetType": "option",
+      "assetDescription": "Intel Corporation - Common Stock (INTC) [OP] F S: New D: Purchased 50 call options with a strike price of $50 and an expiration date of 6/17/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 250001,
+        "max": 500000,
+        "text": "$250,001 - $500,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    },
+    {
+      "id": "house:20035143:5",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-24",
+      "ticker": "INTC",
+      "assetType": "stock",
+      "assetDescription": "Intel Corporation - Common Stock (INTC) [ST] F S: New D: Purchased 10,000 shares.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    },
+    {
+      "id": "house:20035143:6",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-27",
+      "ticker": null,
+      "assetType": "bond",
+      "assetDescription": "REOF XXV, LLC [AB] F S: New D: Additional investment in LLC which is acquiring and restoring a luxury hotel property in San Francisco, CA.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    },
+    {
+      "id": "house:20035143:2",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-28",
+      "ticker": "BE",
+      "assetType": "stock",
+      "assetDescription": "Bloom Energy Corporation Class A Common Stock (BE) [ST] F S: New D: Purchased 5,000 shares.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    },
+    {
+      "id": "house:20035143:3",
+      "filedAt": "2026-08-21",
+      "transactedAt": "2026-07-28",
+      "ticker": "BE",
+      "assetType": "option",
+      "assetDescription": "Bloom Energy Corporation Class A Common Stock (BE) [OP] F S: New D: Purchased 100 call options with a strike price of $100 and an expiration date of 6/17/27.",
+      "side": "buy",
+      "owner": "spouse",
+      "amountRange": {
+        "min": 500001,
+        "max": 1000000,
+        "text": "$500,001 - $1,000,000"
+      },
+      "needsReview": false,
+      "source_url": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"
+    }
+  ],
+  "berkshire": [
+    {
+      "period": "2023-09-30",
+      "filed_at": "2023-11-14",
+      "accepted_at_eastern": "2023-11-14 16:05:04",
+      "accession": "0000950123-23-010898",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012323010898/xslForm13F_X02/27893.xml",
+      "table_rows": 152,
+      "total_reported_value": 313257308189,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 156753093002,
+          "shares": 915560382,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 28279487924,
+          "shares": 1032852006,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 22618800333,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 22392000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 18590066491,
+          "shares": 110248289,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 14541501977,
+          "shares": 224129192,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 10954355278,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 7799843711,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 3412114232,
+          "shares": 36095570,
+          "ticker": "DVA"
+        },
+        {
+          "issuer": "HP INC",
+          "title": "COM",
+          "cusip": "40434L105",
+          "value": 2634739200,
+          "shares": 102519035,
+          "ticker": "HPQ"
+        }
+      ]
+    },
+    {
+      "period": "2023-12-31",
+      "filed_at": "2024-02-14",
+      "accepted_at_eastern": "2024-02-14 16:02:18",
+      "accession": "0000950123-24-002518",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012324002518/xslForm13F_X02/30197.xml",
+      "table_rows": 138,
+      "total_reported_value": 347358074461,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 174347466800,
+          "shares": 905560000,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 34776127042,
+          "shares": 1032852006,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 28402748537,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 23572000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 18808080506,
+          "shares": 126093326,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 14552270657,
+          "shares": 243715804,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 12041975570,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 9635028496,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 3781371913,
+          "shares": 36095570,
+          "ticker": "DVA"
+        },
+        {
+          "issuer": "CITIGROUP INC",
+          "title": "COM NEW",
+          "cusip": "172967424",
+          "value": 2841792358,
+          "shares": 55244797,
+          "ticker": "C"
+        }
+      ]
+    },
+    {
+      "period": "2024-03-31",
+      "filed_at": "2024-05-15",
+      "accepted_at_eastern": "2024-05-15 16:05:04",
+      "accession": "0000950123-24-005622",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012324005622/xslForm13F_X02/32398.xml",
+      "table_rows": 133,
+      "total_reported_value": 331680406332,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 135360901805,
+          "shares": 789368450,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 39165748068,
+          "shares": 1032852006,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 34520240283,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 24472000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 19398897853,
+          "shares": 122980207,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 16118698139,
+          "shares": 248018128,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 12015924784,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 9695962848,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 6717644659,
+          "shares": 25923840,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 4982993438,
+          "shares": 36095570,
+          "ticker": "DVA"
+        }
+      ]
+    },
+    {
+      "period": "2024-06-30",
+      "filed_at": "2024-08-14",
+      "accepted_at_eastern": "2024-08-14 16:05:02",
+      "accession": "0000950123-24-008740",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012324008740/xslForm13F_X02/34725.xml",
+      "table_rows": 129,
+      "total_reported_value": 279969062343,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 84248000000,
+          "shares": 400000000,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 41076524279,
+          "shares": 1032852006,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 35105457585,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 25460000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 18553059728,
+          "shares": 118610534,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 16090394458,
+          "shares": 255281524,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 10491953836,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 10384249654,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 6895777623,
+          "shares": 27033784,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 5001763135,
+          "shares": 36095570,
+          "ticker": "DVA"
+        }
+      ]
+    },
+    {
+      "period": "2024-09-30",
+      "filed_at": "2024-11-14",
+      "accepted_at_eastern": "2024-11-14 16:05:04",
+      "accession": "0000950123-24-011775",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012324011775/xslForm13F_X02/36917.xml",
+      "table_rows": 121,
+      "total_reported_value": 266378900503,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 69900000000,
+          "shares": 300000000,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 41116821840,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 31652073622,
+          "shares": 797683307,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 28744000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 17467773342,
+          "shares": 118610534,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 13157209747,
+          "shares": 255281524,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 11708029942,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 11433038460,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 7796272968,
+          "shares": 27033784,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 5917146790,
+          "shares": 36095570,
+          "ticker": "DVA"
+        }
+      ]
+    },
+    {
+      "period": "2024-12-31",
+      "filed_at": "2025-02-14",
+      "accepted_at_eastern": "2025-02-14 16:00:02",
+      "accession": "0000950123-25-002701",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012325002701/xslForm13F_X02/39042.xml",
+      "table_rows": 112,
+      "total_reported_value": 267175474249,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 75126000000,
+          "shares": 300000000,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 44996539653,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 29896266149,
+          "shares": 680233587,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 24904000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 17179549745,
+          "shares": 118610534,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 13053055436,
+          "shares": 264178414,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 11677932812,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 10000245261,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 7469434519,
+          "shares": 27033784,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 5398092493,
+          "shares": 36095570,
+          "ticker": "DVA"
+        }
+      ]
+    },
+    {
+      "period": "2025-03-31",
+      "filed_at": "2025-05-15",
+      "accepted_at_eastern": "2025-05-15 16:06:43",
+      "accession": "0000950123-25-005701",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012325005701/xslForm13F_X02/form13fInfoTable.xml",
+      "table_rows": 110,
+      "total_reported_value": 258701144516,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 66639000000,
+          "shares": 300000000,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 40790858835,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 28648000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 26355563449,
+          "shares": 631573531,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 19842356232,
+          "shares": 118610534,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 13077509034,
+          "shares": 264941431,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 11488468917,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 9909067512,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 8163932430,
+          "shares": 27033784,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 5375745012,
+          "shares": 35142479,
+          "ticker": "DVA"
+        }
+      ]
+    },
+    {
+      "period": "2025-06-30",
+      "filed_at": "2025-08-14",
+      "accepted_at_eastern": "2025-08-14 16:05:02",
+      "accession": "0000950123-25-008343",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000095012325008343/xslForm13F_X02/43977.xml",
+      "table_rows": 114,
+      "total_reported_value": 257521776925,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 57447600000,
+          "shares": 280000000,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 48360781086,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 28641252185,
+          "shares": 605267375,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 28300000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 17478457567,
+          "shares": 122064792,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 12374113948,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 11130189516,
+          "shares": 264941431,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 8407891001,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 7832227900,
+          "shares": 27033784,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "DAVITA INC",
+          "title": "COM",
+          "cusip": "23918K108",
+          "value": 4814317266,
+          "shares": 33796541,
+          "ticker": "DVA"
+        }
+      ]
+    },
+    {
+      "period": "2025-09-30",
+      "filed_at": "2025-11-14",
+      "accepted_at_eastern": "2025-11-14 16:05:03",
+      "accession": "0001193125-25-282901",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312525282901/xslForm13F_X02/46994.xml",
+      "table_rows": 115,
+      "total_reported_value": 267334501955,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 60656116097,
+          "shares": 238212764,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 50359010112,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "BANK AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 29306731919,
+          "shares": 568070012,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 26528000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 18955441549,
+          "shares": 122064792,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 12518482615,
+          "shares": 264941431,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 11754655821,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 8843709614,
+          "shares": 31332895,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 8479530661,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "ALPHABET INC",
+          "title": "CAP STK CL A",
+          "cusip": "02079K305",
+          "value": 4338397121,
+          "shares": 17846142,
+          "ticker": "GOOGL"
+        }
+      ]
+    },
+    {
+      "period": "2025-12-31",
+      "filed_at": "2026-02-17",
+      "accepted_at_eastern": "2026-02-17 16:05:04",
+      "accession": "0001193125-26-054580",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/xslForm13F_X02/50240.xml",
+      "table_rows": 110,
+      "total_reported_value": 274160086701,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 61961735283,
+          "shares": 227917808,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 56088378465,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "BANK AMERICA CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 28451276370,
+          "shares": 517295934,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 27964000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "CHEVRON CORP NEW",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 19837131131,
+          "shares": 130156362,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 12602556092,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 10894391643,
+          "shares": 264941431,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 10689854998,
+          "shares": 34249183,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 7896644337,
+          "shares": 325634818,
+          "ticker": "KHC"
+        },
+        {
+          "issuer": "ALPHABET INC",
+          "title": "CAP STK CL A",
+          "cusip": "02079K305",
+          "value": 5585842446,
+          "shares": 17846142,
+          "ticker": "GOOGL"
+        }
+      ]
+    },
+    {
+      "period": "2026-03-31",
+      "filed_at": "2026-05-15",
+      "accepted_at_eastern": "2026-05-15 16:06:05",
+      "accession": "0001193125-26-226661",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526226661/xslForm13F_X02/53405.xml",
+      "table_rows": 90,
+      "total_reported_value": 263095703570,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 57843260493,
+          "shares": 227917808,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 45859204536,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 30420000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "BANK AMERICA CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 25039178044,
+          "shares": 513624165,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "CHEVRON CORPORATION",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 17457364606,
+          "shares": 84375856,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 17221193015,
+          "shares": 264941431,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "ALPHABET INC",
+          "title": "CAP STK CL A",
+          "cusip": "02079K305",
+          "value": 15600071913,
+          "shares": 54249798,
+          "ticker": "GOOGL"
+        },
+        {
+          "issuer": "CHUBB LTD SWITZ",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 11162836215,
+          "shares": 34249183,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 10762190653,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "KRAFT HEINZ CO",
+          "title": "COM",
+          "cusip": "500754106",
+          "value": 7323527057,
+          "shares": 325634818,
+          "ticker": "KHC"
+        }
+      ]
+    },
+    {
+      "period": "2026-06-30",
+      "filed_at": "2026-08-14",
+      "accepted_at_eastern": "2026-08-14 16:05:04",
+      "accession": "0001193125-26-352200",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526352200/xslForm13F_X02/56757.xml",
+      "table_rows": 89,
+      "total_reported_value": 299253556246,
+      "holdings": [
+        {
+          "issuer": "APPLE INC",
+          "title": "COM",
+          "cusip": "037833100",
+          "value": 65950296923,
+          "shares": 227917808,
+          "ticker": "AAPL"
+        },
+        {
+          "issuer": "AMERICAN EXPRESS CO",
+          "title": "COM",
+          "cusip": "025816109",
+          "value": 51282319275,
+          "shares": 151610700,
+          "ticker": "AXP"
+        },
+        {
+          "issuer": "COCA COLA CO",
+          "title": "COM",
+          "cusip": "191216100",
+          "value": 32508000000,
+          "shares": 400000000,
+          "ticker": "KO"
+        },
+        {
+          "issuer": "ALPHABET INC",
+          "title": "CAP STK CL A",
+          "cusip": "02079K305",
+          "value": 28157599351,
+          "shares": 78791167,
+          "ticker": "GOOGL"
+        },
+        {
+          "issuer": "BANK OF AMER CORP",
+          "title": "COM",
+          "cusip": "060505104",
+          "value": 27543790975,
+          "shares": 483394015,
+          "ticker": "BAC"
+        },
+        {
+          "issuer": "CHEVRON CORPORATION",
+          "title": "COM",
+          "cusip": "166764100",
+          "value": 13986141890,
+          "shares": 84375856,
+          "ticker": "CVX"
+        },
+        {
+          "issuer": "OCCIDENTAL PETE CORP",
+          "title": "COM",
+          "cusip": "674599105",
+          "value": 12868205304,
+          "shares": 264941431,
+          "ticker": "OXY"
+        },
+        {
+          "issuer": "CHUBB LIMITED",
+          "title": "COM",
+          "cusip": "H1467J104",
+          "value": 11670066615,
+          "shares": 34249183,
+          "ticker": "CB"
+        },
+        {
+          "issuer": "MOODYS CORP",
+          "title": "COM",
+          "cusip": "615369105",
+          "value": 11173435852,
+          "shares": 24669778,
+          "ticker": "MCO"
+        },
+        {
+          "issuer": "ALPHABET INC",
+          "title": "CAP STK CL C",
+          "cusip": "02079K107",
+          "value": 9606489032,
+          "shares": 27188433,
+          "ticker": "GOOG"
+        }
+      ]
+    }
+  ],
+  "audit": [
+    {
+      "p": "2023Q3",
+      "entries": 152,
+      "value": 313257308189,
+      "match": true
+    },
+    {
+      "p": "2023Q4",
+      "entries": 138,
+      "value": 347358074461,
+      "match": true
+    },
+    {
+      "p": "2024Q1",
+      "entries": 133,
+      "value": 331680406332,
+      "match": true
+    },
+    {
+      "p": "2024Q2",
+      "entries": 129,
+      "value": 279969062343,
+      "match": true
+    },
+    {
+      "p": "2024Q3",
+      "entries": 121,
+      "value": 266378900503,
+      "match": true
+    },
+    {
+      "p": "2024Q4",
+      "entries": 112,
+      "value": 267175474249,
+      "match": true
+    },
+    {
+      "p": "2025Q1",
+      "entries": 110,
+      "value": 258701144516,
+      "match": true
+    },
+    {
+      "p": "2025Q2",
+      "entries": 114,
+      "value": 257521776925,
+      "match": true
+    },
+    {
+      "p": "2025Q3",
+      "entries": 115,
+      "value": 267334501955,
+      "match": true
+    },
+    {
+      "p": "2025Q4",
+      "entries": 110,
+      "value": 274160086701,
+      "match": true
+    },
+    {
+      "p": "2026Q1",
+      "entries": 90,
+      "value": 263095703570,
+      "match": true
+    },
+    {
+      "p": "2026Q2",
+      "entries": 89,
+      "value": 299253556246,
+      "match": true
+    }
+  ]
+}
