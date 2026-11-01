@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from analysis import portfolio_risk
+from sector_rotation import STRATEGY as ROTATION_STRATEGY, plan_rotation_entry
 from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
 from data_quality import quote_problem, market_problem
 
@@ -240,6 +241,9 @@ def _select_strategy(analysis):
     bollinger = analysis.get("bollinger_rsi") or {}
     if bollinger.get("action") == "BUY CANDIDATE":
         return BB_STRATEGY, bollinger
+    rotation = analysis.get("sector_rotation")
+    if rotation:
+        return ROTATION_STRATEGY, rotation
     return "trend", analysis
 
 
@@ -407,12 +411,14 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         signal_by_symbol = {}
         for row in connection.execute("SELECT symbol,payload FROM market_analysis WHERE status='ok'"):
             try:
-                signal_by_symbol[row["symbol"]] = json.loads(row["payload"]).get("action")
+                signal_by_symbol[row["symbol"]] = json.loads(row["payload"])
             except (TypeError, json.JSONDecodeError):
                 continue
         for row in rows:
-            if row["status"] == "OPEN" and row["strategy"] == "trend" and signal_by_symbol.get(row["symbol"]) == "REDUCE / AVOID":
-                _close_order(connection, feed, row, log, "Signal changed to Reduce / Avoid")
+            signal = signal_by_symbol.get(row["symbol"]) or {}
+            exit_action = signal.get("action") if row["strategy"] == "trend" else (signal.get("sector_rotation") or {}).get("action")
+            if row["status"] == "OPEN" and row["strategy"] in {"trend", ROTATION_STRATEGY} and exit_action == "REDUCE / AVOID":
+                _close_order(connection, feed, row, log, "Owning strategy changed to Reduce / Avoid")
                 return _snapshot(connection, portfolio, state, managed_open_pnl)
 
         active = [row for row in rows if row["status"] in ACTIVE_ORDER_STATES]
@@ -459,6 +465,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     "Symbol": symbol, "Strategy": strategy,
                     "Signal": analysis.get("action", "Unavailable"),
                     "Trend signal": trend_action, "Bollinger RSI signal": bb_action,
+                    "Rotation signal": (json.loads(signal_row["payload"]).get("sector_rotation") or {}).get("action") if signal_row else None,
                     "Decision": reason or "Data checks passed",
                     "Broker timestamp": quote.get("quote_ts"),
                     "Fetched at": quote.get("fetched_at"),
@@ -472,8 +479,9 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 if reason:
                     continue
                 price = _float(quote.get("ask") or quote.get("last"))
-                if strategy == BB_STRATEGY:
-                    plan, reason = plan_bollinger_entry(
+                if strategy in {BB_STRATEGY, ROTATION_STRATEGY}:
+                    planner = plan_bollinger_entry if strategy == BB_STRATEGY else plan_rotation_entry
+                    plan, reason = planner(
                         analysis, price, risk.get("estimated_account_value_usd", 0), _now()
                     )
                     if reason:
@@ -492,7 +500,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 if amount < 10:
                     decision["Decision"] = "Risk sizing: cash or remaining budget below minimum"
                     continue
-                stop_rate = analysis["stop_rate"] if strategy == BB_STRATEGY else price * (1 - stop_gap / 100)
+                stop_rate = analysis["stop_rate"] if strategy in {BB_STRATEGY, ROTATION_STRATEGY} else price * (1 - stop_gap / 100)
                 target_rate = analysis["target_rate"] if strategy == BB_STRATEGY else price * (1 + 2 * stop_gap / 100)
                 request_id = str(uuid.uuid4())
                 created = now.isoformat()
