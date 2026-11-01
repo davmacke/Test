@@ -159,5 +159,58 @@ class BollingerTests(unittest.TestCase):
                 self.assertEqual(stopped["status"], "STOPPED", "Same run ID cannot restart an ended run")
             c.close()
 
+
+    def test_zero_caps_allow_sixth_entry_but_five_cap_blocks(self):
+        for cap, expected in (("5", 0), ("0", 1)):
+            with self.subTest(cap=cap), tempfile.TemporaryDirectory() as folder:
+                scope["DB"] = Path(folder)/"test.db"
+                c = scope["connect"]()
+                c.execute("""INSERT INTO demo_bot_state
+                    (id,started_at,ends_at,status,start_unrealized_pnl,last_unrealized_pnl,
+                     start_realized_pnl,last_realized_pnl,stop_reason,run_key)
+                    VALUES(1,?,?,'RUNNING',0,0,0,0,'','trial')""",
+                    (STAMP, (NOW+timedelta(hours=8)).isoformat()))
+                for i in range(5):
+                    c.execute("""INSERT INTO demo_bot_orders
+                        (symbol,instrument_id,request_id,action,status,amount_usd,created_at,updated_at,run_key)
+                        VALUES(?,? ,?,'open','CLOSED',10,?,?,'trial')""",
+                        ("OLD"+str(i), i, "old"+str(i), STAMP, STAMP))
+                signal = analyze_bollinger_rsi(candles(), equity=10000, now=NOW)
+                c.execute("INSERT INTO market_analysis VALUES(?,?,?,?)",
+                    ("SOL", STAMP, "ok", json.dumps({"action":"HOLD / WATCH","bollinger_rsi":signal})))
+                c.commit()
+                config = {"DEMO_AUTOTRADE_ENABLED":"true","ETORO_TRADING_MODE":"demo",
+                    "DEMO_RUN_ID":"trial","DEMO_EXECUTION_CHECK_ID":"","DEMO_MAX_ORDERS_PER_RUN":cap,
+                    "DEMO_MAX_OPEN_POSITIONS":cap,"DEMO_MAX_OPEN_LOSS_USD":"0"}
+                feed = Feed()
+                quote = {"symbol":"SOL","ask":62,"bid":61.99,"quote_ts":STAMP,"fetched_at":STAMP}
+                with patch.dict(os.environ, config), patch.object(bot,"_now",return_value=NOW), contextlib.redirect_stdout(io.StringIO()):
+                    bot.run_demo_cycle(c,feed,{"SOL":{"instrument_id":100063}},[quote],
+                        {"clientPortfolio":{"credit":1000,"positions":[]}},lambda *x:None)
+                self.assertEqual(len(feed.orders),expected)
+                c.close()
+
+    def test_zero_loss_cutoff_does_not_stop_at_old_25_dollar_limit(self):
+        for cutoff, expected in (("25", "STOPPING"), ("0", "RUNNING")):
+            with self.subTest(cutoff=cutoff), tempfile.TemporaryDirectory() as folder:
+                scope["DB"] = Path(folder)/"test.db"
+                c = scope["connect"]()
+                c.execute("""INSERT INTO demo_bot_state
+                    (id,started_at,ends_at,status,start_unrealized_pnl,last_unrealized_pnl,
+                     start_realized_pnl,last_realized_pnl,stop_reason,run_key)
+                    VALUES(1,?,?,'RUNNING',0,0,0,0,'','trial')""",
+                    (STAMP,(NOW+timedelta(hours=8)).isoformat()))
+                c.execute("""INSERT INTO demo_bot_orders
+                    (symbol,instrument_id,request_id,action,status,amount_usd,created_at,updated_at,run_key,pnl)
+                    VALUES('OLD',1,'old','open','OPEN',100,?,?,'trial',-30)""",(STAMP,STAMP))
+                c.commit()
+                config = {"DEMO_AUTOTRADE_ENABLED":"true","ETORO_TRADING_MODE":"demo",
+                    "DEMO_RUN_ID":"trial","DEMO_EXECUTION_CHECK_ID":"","DEMO_MAX_OPEN_LOSS_USD":cutoff}
+                with patch.dict(os.environ,config), patch.object(bot,"_now",return_value=NOW), patch.object(bot,"_sync_orders"), patch.object(bot,"_close_order"), contextlib.redirect_stdout(io.StringIO()):
+                    result=bot.run_demo_cycle(c,Feed(),{},[],
+                        {"clientPortfolio":{"credit":1000,"positions":[]}},lambda *x:None)
+                self.assertEqual(result["status"],expected)
+                c.close()
+
 if __name__ == "__main__":
     unittest.main()
