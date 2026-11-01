@@ -402,6 +402,17 @@ if research_id and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", research_id):
             cwd=str(Path(__file__).resolve().parent),
         )
 
+copy_id = os.getenv("COPY_RUN_ID", "").strip()
+copy_folder = None
+if copy_id and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", copy_id):
+    copy_folder = DB.parent / "copy_research" / copy_id
+    if getattr(st, "_copy_id", None) != copy_id:
+        st._copy_id = copy_id
+        st._copy_process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).with_name("copy_runner.py")), str(DB.resolve()), copy_id],
+            cwd=str(Path(__file__).resolve().parent),
+        )
+
 st_autorefresh(interval=POLL * 1000, key="dashboard-auto-refresh")
 st.caption(
     f"Universe: up to {LIMIT} instruments · Refresh: {POLL}s · "
@@ -493,8 +504,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers"]
 )
 
 with signals_tab:
@@ -882,3 +893,53 @@ with research_tab:
                                    file_name=f"research-monthly-{research_id}.csv",mime="text/csv")
             except (OSError,ValueError,KeyError):
                 st.warning("The research report could not be read. Check the worker status.")
+
+with copy_tab:
+    st.subheader("Pelosi household & Berkshire disclosure research")
+    st.caption("Research only · £1,250 each · public disclosures through August 2026 · no broker orders")
+    st.write("The Pelosi follower buys ordinary stock names after disclosure; options, exercises and gifts are excluded. "
+             "The Berkshire follower tracks its ten largest public 13F positions after filing, preserving cash for omitted holdings.")
+    if copy_folder is None:
+        st.info("No disclosure study configured.")
+    else:
+        status_file = copy_folder / "status.json"
+        report_file = copy_folder / "report.json"
+        if status_file.exists():
+            try:
+                copy_status = json.loads(status_file.read_text(encoding="utf-8"))
+                st.write(f"Status: **{copy_status.get('phase', 'UNKNOWN')}**")
+                if copy_status.get("error_type"):
+                    st.error(f"Research failed: {copy_status['error_type']}. Check COPY logs.")
+                if copy_status.get("failures"):
+                    st.warning(f"Unavailable price histories: {copy_status['failures']}")
+            except (OSError, ValueError):
+                st.info("Research status updating.")
+        if report_file.exists():
+            try:
+                copy_text = report_file.read_text(encoding="utf-8")
+                copy_study = json.loads(copy_text)
+                st.caption(f"Frozen prices: {copy_study['as_of']} · GBPUSD {copy_study['gbpusd']:.5f} · excludes dividends and historical FX")
+                st.warning("This is delayed, partial portfolio copying. Historical returns do not establish a dependable 10% monthly income.")
+                copy_profile = st.selectbox("Product cost scenario", list(dict.fromkeys(r["profile"] for r in copy_study["summaries"])), key="copy-profile")
+                copy_window = st.selectbox("Evaluation window", list(dict.fromkeys(r["window"] for r in copy_study["summaries"])), index=1, key="copy-window")
+                copy_lag = st.selectbox("Extra disclosure delay (sessions)", [0, 5], key="copy-lag")
+                shown = [r for r in copy_study["summaries"] if r["window"] == copy_window and r["profile"] == copy_profile and r["extra_delay_sessions"] == copy_lag]
+                st.dataframe(pd.DataFrame(shown), use_container_width=True, hide_index=True)
+                selected_runs = [r for r in copy_study["runs"] if r["window"] == copy_window and r["profile"] == copy_profile and r["extra_delay_sessions"] == copy_lag]
+                curve_rows = [dict(date=p["date"], strategy=r["strategy"], value=p["wealth_gbp"]) for r in selected_runs for p in r["curve"]]
+                if curve_rows:
+                    curve_frame = pd.DataFrame(curve_rows).pivot(index="date",columns="strategy",values="value")
+                    st.line_chart(curve_frame)
+                monthly = [dict(strategy=r["strategy"], **m) for r in selected_runs for m in r["months"]]
+                st.dataframe(pd.DataFrame(monthly), use_container_width=True, hide_index=True)
+                with st.expander("Rules, coverage and source filings"):
+                    for strategy, rule in copy_study["rules"].items():
+                        st.write(f"**{strategy}**: {rule}")
+                    for assumption in copy_study["assumptions"]:
+                        st.write(assumption)
+                    st.dataframe(pd.DataFrame(copy_study["coverage"]).T, use_container_width=True)
+                    st.json(copy_study["filing_sources"])
+                st.download_button("Download disclosure research report", copy_text, file_name=f"copy-{copy_id}.json",mime="application/json")
+                st.download_button("Download selected monthly results", pd.DataFrame(monthly).to_csv(index=False),file_name=f"copy-monthly-{copy_id}.csv",mime="text/csv")
+            except (OSError, ValueError, KeyError):
+                st.warning("Disclosure report could not be read. Check worker status.")
