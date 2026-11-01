@@ -65,4 +65,24 @@ class BacktestTests(unittest.TestCase):
         self.assertGreater(first["entry"],100)
         self.assertGreater(len(report["trades"]["earlier_75pct|trend|base"]),0)
 
+
+    def test_sterling_conversion_and_target_comparison(self):
+        usd,rate,date=bt.sterling_capital({"GBPUSD":[bar(0,1.34,1.33,1.35)]},250)
+        self.assertEqual(usd,335)
+        report={"assumptions":[],"summaries":[{"net_pnl_usd":33.5,"final_usd":368.5,
+            "realized_weekly_pnl_usd":{"a":33.5,"b":0,"c":-5}}]}
+        bt.add_sterling_comparison(report,250,rate,date,25)
+        self.assertEqual(report["summaries"][0]["net_pnl_gbp"],25)
+        self.assertEqual(report["summaries"][0]["weeks_realized_at_least_target"],1)
+        self.assertEqual(report["summaries"][0]["weeks_in_window"],3)
+        with self.assertRaises(ValueError): bt.sterling_capital({},250)
+    def test_small_capital_fixed_fees_are_not_scaled_large_account_results(self):
+        returns=[]
+        for capital in (335,10000):
+            book=bt.Account("trend","base",capital)
+            book.step(stamp(0),{"TEST":bar(0)},{"TEST":signal()},{"TEST":"Stocks"})
+            summary=book.finish(stamp(0))
+            returns.append(summary["return_pct"])
+        self.assertLess(returns[0],returns[1])
+
 if __name__=="__main__": unittest.main()

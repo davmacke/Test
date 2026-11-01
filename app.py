@@ -766,6 +766,11 @@ with backtest_tab:
                 report = json.loads(report_text)
                 st.caption(f"Historical snapshot: {report['as_of']} · initial simulated capital: "
                            f"{report['initial_capital_usd']:,.2f} USD per strategy/window")
+                if report.get("sterling"):
+                    sterling=report["sterling"]
+                    st.caption(f"Sterling scenario: £{sterling['initial_gbp']:,.2f} initial capital · "
+                               f"£{sterling['target_gbp']:g} target · GBPUSD {sterling['gbpusd']:.5f} "
+                               f"at {sterling['rate_date']}. Constant FX conversion; no currency-cost reconstruction.")
                 summaries = pd.DataFrame(report["summaries"])
                 for window, label in [("latest_25pct", "Latest 25% · separate evaluation"),
                                       ("earlier_75pct", "Earlier 75% · historical comparison")]:
