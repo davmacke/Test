@@ -356,7 +356,8 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     )
     stop_at = datetime.fromisoformat(state["ends_at"])
     stop_reason = state["stop_reason"] or ""
-    if state["status"] == "RUNNING" and managed_open_pnl <= -abs(float(os.getenv("DEMO_MAX_OPEN_LOSS_USD", "25"))):
+    loss_limit = abs(float(os.getenv("DEMO_MAX_OPEN_LOSS_USD", "25")))
+    if state["status"] == "RUNNING" and loss_limit > 0 and managed_open_pnl <= -loss_limit:
         stop_reason = "Demo open-position loss limit reached"
         connection.execute(
             "UPDATE demo_bot_state SET status='STOPPING',stop_reason=? WHERE id=1",
@@ -415,8 +416,8 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                 return _snapshot(connection, portfolio, state, managed_open_pnl)
 
         active = [row for row in rows if row["status"] in ACTIVE_ORDER_STATES]
-        order_limit = max(1, min(5, int(os.getenv("DEMO_MAX_ORDERS_PER_RUN", "5"))))
-        position_limit = max(1, min(5, int(os.getenv("DEMO_MAX_OPEN_POSITIONS", "5"))))
+        order_limit = max(0, int(os.getenv("DEMO_MAX_ORDERS_PER_RUN", "5")))
+        position_limit = max(0, int(os.getenv("DEMO_MAX_OPEN_POSITIONS", "5")))
         max_order = max(10.0, cash_budget)
         max_exposure = cash_budget
         opens = [row for row in rows if row["action"] == "open"]
@@ -431,7 +432,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
         }
         quotes_by_symbol = {quote["symbol"]: quote for quote in quotes}
 
-        if len(opens) < order_limit and len(active) < position_limit:
+        if (order_limit == 0 or len(opens) < order_limit) and (position_limit == 0 or len(active) < position_limit):
             for symbol, meta in mapping.items():
                 previous = connection.execute(
                     "SELECT id FROM demo_bot_orders WHERE symbol=? AND run_key=? LIMIT 1", (symbol, run_key)
