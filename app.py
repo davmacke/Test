@@ -11,7 +11,8 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from analysis import analyze_candles, portfolio_risk
-from bollinger_rsi import analyze_bollinger_rsi
+from bollinger_rsi import analyze_bollinger_rsi, completed_daily_candles
+from sector_rotation import analyze_rotation, SUPPORTED as ROTATION_SYMBOLS
 from data_quality import quote_problem, age_seconds
 from demo_trader import run_demo_cycle
 from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS
@@ -200,7 +201,8 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
             stale.append(symbol)
             continue
         try:
-            if row["status"] == "ok" and "bollinger_rsi" not in json.loads(row["payload"]):
+            if row["status"] == "ok" and ("bollinger_rsi" not in json.loads(row["payload"]) or
+                    (symbol in (*ROTATION_SYMBOLS, "SPY") and "rotation_history" not in json.loads(row["payload"]))):
                 stale.append(symbol)
                 continue
             age = (now - datetime.fromisoformat(row["fetched_at"])).total_seconds()
@@ -225,6 +227,8 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
                 candles, current_price=latest_prices.get(symbol), equity=equity,
                 risk_per_trade_pct=RISK_PER_TRADE_PCT, max_position_pct=MAX_POSITION_PCT,
             )
+            if symbol in (*ROTATION_SYMBOLS, "SPY"):
+                result["rotation_history"] = completed_daily_candles(candles, now)[-61:]
             bb = result["bollinger_rsi"]
             log(connection, "INFO", "BOLLINGER_RSI_ANALYSIS " + json.dumps({
                 "symbol": symbol, "action": bb["action"], "completed_bars": bb["bars"],
@@ -244,6 +248,31 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
                 })),
             )
             log(connection, "ERROR", f"Candle analysis failed for {symbol}: {type(error).__name__}: {error}")
+
+    histories = {}
+    payloads = {}
+    for row in connection.execute("SELECT symbol,fetched_at,status,payload FROM market_analysis"):
+        if row["status"] != "ok":
+            continue
+        try:
+            payload = json.loads(row["payload"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        payloads[row["symbol"]] = payload
+        if "rotation_history" in payload:
+            histories[row["symbol"]] = {"bars": payload["rotation_history"], "evaluated_at": row["fetched_at"]}
+    rotation = analyze_rotation(histories, equity, now, RISK_PER_TRADE_PCT, MAX_POSITION_PCT)
+    for symbol, signal in rotation.items():
+        if symbol not in payloads:
+            continue
+        payloads[symbol]["sector_rotation"] = signal
+        connection.execute("UPDATE market_analysis SET payload=? WHERE symbol=?",
+                           (json.dumps(payloads[symbol]), symbol))
+    log(connection, "INFO", "SECTOR_ROTATION_ANALYSIS " + json.dumps({
+        symbol: {"action": r["action"], "rank": r.get("rank"), "coverage": r.get("sector_coverage"),
+                 "relative20_pct": r.get("relative20_pct"), "reasons": r["reasons"]}
+        for symbol,r in rotation.items()
+    }))
     connection.commit()
 
 
@@ -453,6 +482,7 @@ with signals_tab:
     else:
         records = []
         bb_records = []
+        rotation_records = []
         for _, row in analyses.iterrows():
             try:
                 result = json.loads(row["payload"])
@@ -477,6 +507,17 @@ with signals_tab:
                 "Why": "; ".join(result.get("reasons", [])),
                 "Updated": row["fetched_at"],
             })
+            rotation = result.get("sector_rotation")
+            if rotation:
+                rotation_records.append({
+                    "Symbol": row["symbol"], "Signal": rotation.get("action"),
+                    "Rank": rotation.get("rank"), "Sector coverage": rotation.get("sector_coverage"),
+                    "20-session relative return vs SPY %": rotation.get("relative20_pct"),
+                    "20-session momentum %": rotation.get("momentum20_pct"),
+                    "Stop": rotation.get("stop_rate"), "Target": rotation.get("target_rate"),
+                    "Signal candle": rotation.get("signal_candle"),
+                    "Why": "; ".join(rotation.get("reasons", [])),
+                })
             bb = result.get("bollinger_rsi") or {}
             bb_records.append({
                 "Symbol": row["symbol"], "Signal": bb.get("action", "Loading"),
@@ -499,13 +540,22 @@ with signals_tab:
             "Completed daily candles only: 20-period bands at 2 standard deviations, Wilder RSI(14) below 30, "
             "low below the lower band and close back inside. Long entries use the signal candle's fixed "
             "lower band as stop and middle band as target. Fresh quotes and market status are required. "
-            "Both strategies share the bot budget; a Bollinger/RSI candidate takes priority for the same symbol."
+            "All strategies share the bot budget; a Bollinger/RSI candidate takes priority for the same symbol."
         )
         bb_frame = pd.DataFrame(bb_records)
         if not bb_frame.empty:
             bb_frame["_sort"] = bb_frame["Signal"].map({"BUY CANDIDATE": 0, "HOLD / WATCH": 1}).fillna(2)
             st.dataframe(bb_frame.sort_values("_sort").drop(columns="_sort"),
                          use_container_width=True, hide_index=True)
+        st.subheader("Oil and sector rotation")
+        st.caption("Completed daily candles: sectors rank by 20-session relative return versus SPY. "
+                   "Top-three leadership, positive momentum and a close above SMA50 are required, "
+                   "with at least eight aligned sectors. Oil requires a 20-session breakout above SMA50. "
+                   "Stops use 2× average true range (14), targets use twice the initial risk. "
+                   "Bollinger entries take priority; rotation owns other entries for these instruments. "
+                   "News research informs review; headlines do not automatically place orders.")
+        if rotation_records:
+            st.dataframe(pd.DataFrame(rotation_records), use_container_width=True, hide_index=True)
         with st.expander("Signal and sizing rules"):
             st.markdown(
                 f"""
@@ -618,10 +668,10 @@ with feed_tab:
     st.dataframe(events, use_container_width=True, hide_index=True)
 
 with bot_tab:
-    st.subheader("Demo-only overnight run")
+    st.subheader("Demo strategy trial")
     st.caption(
         "Execution is hard-locked to eToro's demo order endpoint. The bot is long-only at 1x leverage, "
-        "allows up to 5 entries, sizes each one from the portfolio risk budget, and caps total bot exposure "
+        "sizes entries from the portfolio risk budget and caps total bot exposure "
         "at available demo cash. Each entry carries a broker-side stop loss and take profit; only bot-opened "
         "positions are closed by signal or at run end."
     )
@@ -632,6 +682,12 @@ with bot_tab:
             bot_status = {"status": "UNKNOWN"}
     else:
         bot_status = {"status": "WAITING", "message": "Waiting for a readable demo portfolio and a running service."}
+    st.caption(
+        f"Run entry cap: {os.getenv('DEMO_MAX_ORDERS_PER_RUN', '5')} · "
+        f"Open position cap: {os.getenv('DEMO_MAX_OPEN_POSITIONS', '5')} · "
+        f"Aggregate open-loss cutoff (USD): {os.getenv('DEMO_MAX_OPEN_LOSS_USD', '25')}. "
+        "Zero disables the corresponding run-level cap; strategy sizing and broker stops still apply."
+    )
     st.write(f"Status: **{bot_status.get('status', 'UNKNOWN')}**")
     st.write(bot_status.get("message", ""))
     if bot_status.get("run_key"):
