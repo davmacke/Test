@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from statistics import mean
 from analysis import analyze_candles
 from bollinger_rsi import analyze_bollinger_rsi, plan_bollinger_entry, STRATEGY as BB
-from sector_rotation import analyze_rotation, plan_rotation_entry, STRATEGY as ROTATION
+from sector_rotation import analyze_rotation, plan_rotation_entry, STRATEGY as ROTATION, SUPPORTED as ROTATION_SYMBOLS
 from data_quality import utc_timestamp
 
 MODES = ("trend", BB, ROTATION, "combined")
@@ -173,7 +173,7 @@ def replay(data,classes,capital=10000,progress=None):
         bars=schedule[stamp]
         now=day.isoformat()
         rotation=analyze_rotation({s:{"bars":rows[-100:],"evaluated_at":now}
-                                  for s,rows in histories.items()},capital,day)
+                                  for s,rows in histories.items() if s in (*ROTATION_SYMBOLS, "SPY")},capital,day)
         signals={}
         for s,bar in bars.items():
             past=histories[s][-100:]
@@ -212,3 +212,26 @@ def replay(data,classes,capital=10000,progress=None):
         "split_date":cutoff,"assumptions":ASSUMPTIONS,"scenarios":SCENARIOS,
         "coverage":{s:{"bars":len(r),"from":r[0]["fromDate"],"to":r[-1]["fromDate"]} for s,r in clean.items()},
         "rejected_symbols":sorted(set(data)-set(clean))}
+
+
+def sterling_capital(data, amount_gbp):
+    """Constant conversion snapshot, not a historical GBP equity conversion."""
+    rows=data.get("GBPUSD") or []
+    if not rows: raise ValueError("GBPUSD history required for GBP capital")
+    rate=float(rows[-1]["close"])
+    amount=float(amount_gbp)
+    if not math.isfinite(rate) or not math.isfinite(amount) or rate<=0 or amount<=0:
+        raise ValueError("Invalid GBP capital or conversion")
+    return amount*rate,rate,rows[-1]["fromDate"]
+
+def add_sterling_comparison(report, capital_gbp, rate, rate_date, target_gbp=25):
+    report["sterling"]={"initial_gbp":capital_gbp,"gbpusd":rate,"rate_date":rate_date,
+        "target_gbp":target_gbp,"method":"Constant conversion using latest fetched GBPUSD daily close"}
+    for result in report["summaries"]:
+        result["net_pnl_gbp"]=round(result["net_pnl_usd"]/rate,2)
+        result["final_gbp"]=round(result["final_usd"]/rate,2)
+        weekly=list(result["realized_weekly_pnl_usd"].values())
+        result["weeks_realized_at_least_target"]=sum(x/rate>=target_gbp for x in weekly)
+        result["weeks_in_window"]=len(weekly)
+    report["assumptions"].append("GBP display uses a single current broker GBPUSD snapshot. Historical GBP/USD changes and conversion charges are not modeled. Weekly realized P&L is lumpy and includes forced end-of-window liquidation; target-hit counts do not forecast income.")
+    return report

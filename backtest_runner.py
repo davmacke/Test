@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 from bollinger_rsi import completed_daily_candles
 from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS
-from backtest import replay
+from backtest import replay, sterling_capital, add_sterling_comparison
 
 def atomic(path,payload):
     temp=path.with_suffix(".tmp")
@@ -33,7 +33,15 @@ def main(db_path,token):
         old={}
         if (folder/"status.json").exists():
             old=json.loads((folder/"status.json").read_text())
-        as_of=old.get("as_of") or datetime.now(timezone.utc).isoformat()
+        dataset_id=os.getenv("BACKTEST_DATASET_ID",token)
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}",dataset_id):
+            raise ValueError("Invalid historical dataset identifier")
+        source_folder=Path(db_path).parent/"backtests"/dataset_id
+        source_folder.mkdir(parents=True,exist_ok=True)
+        source_status={}
+        if (source_folder/"status.json").exists():
+            source_status=json.loads((source_folder/"status.json").read_text())
+        as_of=old.get("as_of") or source_status.get("as_of") or datetime.now(timezone.utc).isoformat()
         snapshot=datetime.fromisoformat(as_of)
         def status(phase,**extra):
             atomic(folder/"status.json",{"id":token,"phase":phase,"as_of":as_of,
@@ -51,7 +59,7 @@ def main(db_path,token):
         data={}; classes={}; failures={}
         status("FETCHING",instruments=len(mapping))
         for index,(symbol,meta) in enumerate(mapping.items()):
-            file=folder/(str(int(meta["instrument_id"]))+".json")
+            file=source_folder/(str(int(meta["instrument_id"]))+".json")
             try:
                 if file.exists(): rows=json.loads(file.read_text())
                 else:
@@ -67,10 +75,17 @@ def main(db_path,token):
             if index%10==0 or index==len(mapping)-1:
                 status("FETCHING",done=index+1,total=len(mapping),usable=len(data),failures=failures)
         capital=float(os.getenv("BACKTEST_INITIAL_USD","10000"))
+        gbp_text=os.getenv("BACKTEST_INITIAL_GBP","").strip()
+        rate=rate_date=None
+        if gbp_text:
+            capital,rate,rate_date=sterling_capital(data,float(gbp_text))
         if not 0<capital<1e9: raise ValueError("Invalid simulated initial capital")
         def progress(done,total):
             status("REPLAYING",done=done,total=total,usable=len(data))
         report=replay(data,classes,capital,progress)
+        if gbp_text:
+            report=add_sterling_comparison(report,float(gbp_text),rate,rate_date,
+                                           float(os.getenv("BACKTEST_TARGET_GBP","25")))
         report.update(id=token,as_of=as_of,finished_at=datetime.now(timezone.utc).isoformat(),
             data_source="eToro daily candle API, up to 1000 completed bars per current-universe instrument",
             data_failures=failures,initial_capital_usd=capital)
