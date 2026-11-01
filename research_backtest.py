@@ -167,7 +167,7 @@ class Book:
         self.cash-=payout; self.withdrawals+=payout
         row={"month":month_of(stamp),"return_pct":profit/self.month_start*100 if self.month_start>0 else 0,
             "profit_gbp":profit/self.fx,"withdrawal_gbp":payout/self.fx,
-            "closing_balance_gbp":self.equity()/self.fx,"partial":partial}
+            "closing_balance_gbp":self.equity()/self.fx,"partial":bool(partial)}
         self.months.append(row); self.month_start=self.equity()
         if self.curve:
             self.curve[-1].update(equity_gbp=self.equity()/self.fx,

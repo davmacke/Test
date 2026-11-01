@@ -1,4 +1,5 @@
 import copy
+import json
 import math
 import unittest
 from datetime import datetime,timedelta,timezone
@@ -110,6 +111,7 @@ class ResearchTests(unittest.TestCase):
             for r in changed[s][-20:]:
                 for field in ("open","high","low","close"): r[field]*=1.3
         second=replay_research(changed)
+        json.dumps(first, allow_nan=False)
         self.assertEqual(len(first["summaries"]),18)
         before=[s for s in first["summaries"] if s["window"]=="earlier_75pct"]
         after=[s for s in second["summaries"] if s["window"]=="earlier_75pct"]
