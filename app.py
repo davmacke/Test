@@ -22,7 +22,7 @@ from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS, UK_SYMBOLS
 
 DB = Path(os.getenv("DATABASE_PATH", "scanner.sqlite3"))
 POLL = max(30, int(os.getenv("POLL_SECONDS", "60")))
-LIMIT = max(20, min(120, int(os.getenv("UNIVERSE_LIMIT", "120"))))
+LIMIT = max(20, min(121, int(os.getenv("UNIVERSE_LIMIT", "121"))))
 MODE = os.getenv("ETORO_TRADING_MODE", "demo").strip().lower()
 if MODE not in {"demo", "real"}:
     MODE = "demo"
@@ -703,7 +703,7 @@ with feed_tab:
     st.subheader("Market data and service status")
     st.write(f"Selected account mode: **{MODE.upper()}** (portfolio read only)")
     st.write(f"Quote polling: every {POLL} seconds; candle analysis refresh: every {CANDLE_REFRESH_SECONDS // 60} minutes.")
-    st.write(f"Analysis uses up to {LIMIT} configured symbols. The universe includes crypto, commodities, currencies, indices, ETFs, US stocks and 20 London-listed UK shares; unsupported symbols are skipped.")
+    st.write(f"Analysis uses up to {LIMIT} configured symbols. The universe includes crypto, commodities, currencies, indices, ETFs, US stocks and 21 London-listed UK shares; unsupported symbols are skipped.")
     st.write(f"Risk sizing defaults: {RISK_PER_TRADE_PCT:g}% account risk per candidate, {MAX_POSITION_PCT:g}% maximum estimated account allocation.")
     if not analyses.empty:
         status_counts = analyses["status"].value_counts().to_dict()

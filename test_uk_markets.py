@@ -14,9 +14,9 @@ from analysis import analyze_candles
 
 class UKMarketTests(unittest.TestCase):
     def test_uk_shares_fit_with_existing_candidates(self):
-        selected=ef.DEFAULT_SYMBOLS[:120]
-        self.assertEqual(len(selected),120)
-        self.assertEqual(len(ef.UK_SYMBOLS),20)
+        selected=ef.DEFAULT_SYMBOLS[:121]
+        self.assertEqual(len(selected),121)
+        self.assertEqual(len(ef.UK_SYMBOLS),21)
         self.assertTrue(set(ef.UK_SYMBOLS).issubset(selected))
         self.assertTrue({'OXY','XLE','SPY','SOL','AAPL','HOOD'}.issubset(selected))
         self.assertEqual(len(set(selected)),len(selected))
@@ -61,4 +61,39 @@ class UKMarketTests(unittest.TestCase):
             self.assertAlmostEqual(order['stopLossRate'],1434*.97)
             self.assertNotIn('units',order)
             c.close()
+
+    def test_easyjet_probe_is_one_off_and_demo_only(self):
+        from datetime import datetime,timedelta,timezone
+        now=datetime.now(timezone.utc); stamp=now.isoformat()
+        with tempfile.TemporaryDirectory() as folder:
+            harness.scope['DB']=Path(folder)/'probe.db'; c=harness.scope['connect']()
+            class ProbeFeed(harness.Feed):
+                def resolve_symbols(self,symbols):
+                    return {'EZJ.L':dict(harness.FRESH,instrument_id=2032,is_open=False,status_checked_at=stamp)}
+                def fetch_rates(self,mapping):
+                    return [dict(harness.QUOTE,symbol='EZJ.L',instrument_id=2032,quote_ts=stamp,fetched_at=stamp)]
+                def fetch_portfolio(self,mode):
+                    assert mode=='demo'
+                    return {'clientPortfolio':{'credit':1000,'positions':[]}}
+                def fetch_candles(self,*args,**kw):
+                    return [{'fromDate':(now-timedelta(days=2)).isoformat(),'open':100,'high':101,'low':99,'close':100}]
+            config={'DEMO_AUTOTRADE_ENABLED':'true','ETORO_TRADING_MODE':'demo','DEMO_EXECUTION_CHECK_ID':'','DEMO_EZJ_EXECUTION_CHECK_ID':'ezj-test',
+                    'DEMO_EXECUTION_CHECK_SYMBOL':'EZJ.L','DEMO_EZJ_BROKER_PROBE':'true','DEMO_RUN_ID':'ezj-test',
+                    'DEMO_RUN_ENDS_AT':'','DEMO_EXECUTION_CHECK_CONTINUE':'false'}
+            feed=ProbeFeed()
+            with patch.dict(os.environ,config),patch.object(harness.bot,'_now',return_value=now),contextlib.redirect_stdout(io.StringIO()):
+                harness.bot.run_demo_cycle(c,feed,{},[],feed.fetch_portfolio('demo'),lambda *a:None)
+                harness.bot._execution_check(c,feed,lambda *a:None)
+            self.assertEqual(len(feed.orders),1)
+            self.assertEqual(feed.orders[0]['amount'],10)
+            self.assertEqual(feed.orders[0]['instrumentId'],2032)
+            self.assertEqual(feed.orders[0]['orderCurrency'],'usd')
+            self.assertAlmostEqual(feed.orders[0]['stopLossRate'],95)
+            # The same armed probe cannot bypass the real-mode lock.
+            with patch.dict(os.environ,{**config,'ETORO_TRADING_MODE':'real'}),contextlib.redirect_stdout(io.StringIO()):
+                result=harness.bot.run_demo_cycle(c,feed,{},[],{},lambda *a:None)
+            self.assertEqual(result['status'],'BLOCKED')
+            self.assertEqual(len(feed.orders),1)
+            c.close()
+
 if __name__=='__main__': unittest.main()
