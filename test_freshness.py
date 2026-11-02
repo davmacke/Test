@@ -127,7 +127,7 @@ class FreshnessTests(unittest.TestCase):
             c.execute("INSERT INTO market_analysis VALUES(?,?,?,?)", ("SOL", STAMP, "ok", json.dumps(BUY)))
             c.commit()
             feed = Feed()
-            with patch.dict(os.environ, {"DEMO_AUTOTRADE_ENABLED": "true", "ETORO_TRADING_MODE": "demo", "DEMO_EXECUTION_CHECK_ID": ""}), patch.object(bot, "_now", return_value=NOW), contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ, {"DEMO_AUTOTRADE_ENABLED": "true", "ETORO_TRADING_MODE": "demo", "DEMO_EXECUTION_CHECK_ID": ""}), patch.object(bot, "_now", return_value=NOW), patch.object(bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 stale = dict(QUOTE, quote_ts=(NOW-timedelta(hours=1)).isoformat())
                 snapshot = bot.run_demo_cycle(c, feed, {"SOL": META}, [stale],
                     {"clientPortfolio": {"credit": 1000, "positions": []}}, lambda *args: None)

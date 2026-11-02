@@ -66,7 +66,7 @@ class SessionTests(unittest.TestCase):
             quote=dict(h.QUOTE,symbol='SHEL.L',instrument_id=2171,quote_ts=stamp,fetched_at=stamp)
             cfg={'DEMO_AUTOTRADE_ENABLED':'true','ETORO_TRADING_MODE':'demo','DEMO_EXECUTION_CHECK_ID':'',
                  'DEMO_EZJ_EXECUTION_CHECK_ID':'','DEMO_RUN_ENDS_AT':''}
-            with patch.dict(os.environ,cfg),patch.object(h.bot,'_now',return_value=now),contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ,cfg),patch.object(h.bot,'_now',return_value=now),patch.object(h.bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 snapshot=h.bot.run_demo_cycle(c,feed,{'SHEL.L':meta},[quote],{'clientPortfolio':{'credit':1000,'positions':[]}},lambda *args:None)
             self.assertEqual(len(feed.orders),1)
             self.assertEqual(feed.orders[0]['amount'],signal['suggested_size_usd'])

@@ -74,7 +74,7 @@ class RotationTests(unittest.TestCase):
         functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=="refresh_analysis"]
         from bollinger_rsi import analyze_bollinger_rsi,completed_daily_candles
         namespace=dict(datetime=datetime,timezone=timezone,json=json,CANDLE_REFRESH_SECONDS=1800,
-            CANDLES_PER_CYCLE=100,ROTATION_SYMBOLS=SUPPORTED,analyze_rotation=analyze_rotation,
+            APPROVAL_PRIORITY=(),CANDLES_PER_CYCLE=100,ROTATION_SYMBOLS=SUPPORTED,analyze_rotation=analyze_rotation,
             analyze_bollinger_rsi=analyze_bollinger_rsi,completed_daily_candles=completed_daily_candles,
             RISK_PER_TRADE_PCT=.5,MAX_POSITION_PCT=5, UK_SYMBOLS=(),
             analyze_candles=lambda *a,**kw:{"action":"HOLD / WATCH"},log=lambda *a:None)
@@ -103,7 +103,7 @@ class RotationTests(unittest.TestCase):
             config={"DEMO_AUTOTRADE_ENABLED":"true","ETORO_TRADING_MODE":"demo","DEMO_RUN_ID":"rotation-test",
                 "DEMO_RUN_HOURS":"8","DEMO_EXECUTION_CHECK_ID":"","DEMO_MAX_OPEN_LOSS_USD":"0"}
             quote={"symbol":"OIL","ask":price,"bid":price-.01,"quote_ts":STAMP,"fetched_at":STAMP}
-            with patch.dict(os.environ,config),patch.object(bot,"_now",return_value=NOW),contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ,config),patch.object(bot,"_now",return_value=NOW),patch.object(bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 snapshot=bot.run_demo_cycle(c,feed,{"OIL":mapping["OIL"]},[quote],
                     {"clientPortfolio":{"credit":1000,"positions":[]}},lambda *x:None)
             self.assertEqual(len(feed.orders),1)

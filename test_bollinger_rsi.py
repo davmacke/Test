@@ -128,7 +128,7 @@ class BollingerTests(unittest.TestCase):
             portfolio = {"clientPortfolio": {"credit": 1000, "positions": []}}
             config = {"DEMO_AUTOTRADE_ENABLED": "true", "ETORO_TRADING_MODE": "demo",
                       "DEMO_EXECUTION_CHECK_ID": "", "DEMO_RUN_ID": "bb-test", "DEMO_RUN_HOURS": "8"}
-            with patch.dict(os.environ, config), patch.object(bot, "_now", return_value=NOW), contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ, config), patch.object(bot, "_now", return_value=NOW), patch.object(bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 snapshot = bot.run_demo_cycle(c, feed, {"SOL": {"instrument_id": 100063}}, [quote], portfolio, lambda *x: None)
                 self.assertEqual(snapshot["status"], "RUNNING")
                 self.assertEqual(snapshot["run_key"], "bb-test")
@@ -184,7 +184,7 @@ class BollingerTests(unittest.TestCase):
                     "DEMO_MAX_OPEN_POSITIONS":cap,"DEMO_MAX_OPEN_LOSS_USD":"0"}
                 feed = Feed()
                 quote = {"symbol":"SOL","ask":62,"bid":61.99,"quote_ts":STAMP,"fetched_at":STAMP}
-                with patch.dict(os.environ, config), patch.object(bot,"_now",return_value=NOW), contextlib.redirect_stdout(io.StringIO()):
+                with patch.dict(os.environ, config), patch.object(bot,"_now",return_value=NOW), patch.object(bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                     bot.run_demo_cycle(c,feed,{"SOL":{"instrument_id":100063}},[quote],
                         {"clientPortfolio":{"credit":1000,"positions":[]}},lambda *x:None)
                 self.assertEqual(len(feed.orders),expected)
@@ -206,7 +206,7 @@ class BollingerTests(unittest.TestCase):
                 c.commit()
                 config = {"DEMO_AUTOTRADE_ENABLED":"true","ETORO_TRADING_MODE":"demo",
                     "DEMO_RUN_ID":"trial","DEMO_EXECUTION_CHECK_ID":"","DEMO_MAX_OPEN_LOSS_USD":cutoff}
-                with patch.dict(os.environ,config), patch.object(bot,"_now",return_value=NOW), patch.object(bot,"_sync_orders"), patch.object(bot,"_close_order"), contextlib.redirect_stdout(io.StringIO()):
+                with patch.dict(os.environ,config), patch.object(bot,"_now",return_value=NOW), patch.object(bot,"_sync_orders"), patch.object(bot,"_close_order"), patch.object(bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                     result=bot.run_demo_cycle(c,Feed(),{},[],
                         {"clientPortfolio":{"credit":1000,"positions":[]}},lambda *x:None)
                 self.assertEqual(result["status"],expected)
