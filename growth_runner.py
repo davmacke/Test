@@ -18,6 +18,7 @@ from broker_accounting import totals,all_positions,position_pnl,number
 from bollinger_rsi import completed_daily_candles
 from data_quality import age_seconds
 from portfolio_evaluator import path_report,holding_diagnostics
+from garch_model import instrument_forecasts,VERSION as GARCH_VERSION
 
 STOP=threading.Event()
 FED_SEED="https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm"
@@ -139,6 +140,15 @@ def evaluate(db,folder,conn):
     history=folder/'candles';history.mkdir(exist_ok=True)
     wanted={h['symbol']:h['instrument_id'] for h in groups.values()}
     wanted.update({s:m['instrument_id'] for s,m in selected.items()})
+    market=sqlite3.connect(db.resolve().as_uri()+"?mode=ro",uri=True)
+    try:
+        for symbol,payload in market.execute("SELECT symbol,payload FROM market_analysis WHERE status='ok'"):
+            try:
+                a=json.loads(payload)
+                candidate=any(item.get("action")=="BUY CANDIDATE" for item in (a,a.get("bollinger_rsi") or {},a.get("sector_rotation") or {}))
+                if candidate and symbol in mapping:wanted[symbol]=mapping[symbol]["instrument_id"]
+            except (TypeError,ValueError):pass
+    finally:market.close()
     for s,instrument in wanted.items():
         file=history/(str(instrument)+'.json')
         try:
@@ -159,12 +169,13 @@ def evaluate(db,folder,conn):
     observations=[json.loads(r[0]) for r in conn.execute('SELECT payload FROM observations ORDER BY stamp')]+[snapshot]
     result=path_report(observations,flows)
     diagnostic=holding_diagnostics(snapshot['holdings'],data,data.get('GBPUSD',[]),account['equity_usd'])
+    volatility=instrument_forecasts(data,now)
     orders,execution=read_main(db)
     active={str(p.get('positionID',p.get('positionId'))):p for p in all_positions(portfolio)}
     bot_pnl=sum(position_pnl(active[str(o['position_id'])]) for o in orders
                 if o.get('strategy')!='execution_check' and str(o.get('position_id')) in active)
     papers=json.loads(Path(__file__).with_name('research_methods.json').read_text(encoding='utf-8'))
-    result.update(**diagnostic,fx_reference=fx_reference,latest_rates=rates,rate_fetch_errors=rate_errors,history_failures=failures,
+    result.update(**diagnostic,volatility=volatility,fx_reference=fx_reference,latest_rates=rates,rate_fetch_errors=rate_errors,history_failures=failures,
                   execution_quality=execution,bot_strategy_open_pnl_usd=bot_pnl,papers=papers,
                   source='Fresh eToro demo P&L API; current holdings and balances. Market-data GETs only.',
                   limitations=[
@@ -176,10 +187,11 @@ def evaluate(db,folder,conn):
                    'Cash curves use previously observed dated policy/SOFR proxies, not guaranteed deposit products or eToro interest payments. Expired rate data are unavailable, never zero-filled.',
                    'Current-holdings historical risk/momentum is a hypothetical fixed-weight diagnostic, not a historical return of this account. Costs, funding and corporate-action adjustments are not independently validated.',
                    'No alpha or full Fama-French/Carhart regression is claimed. This needs validated factors and a sufficiently long account return history.',
-                   'GARCH grid fit and covariance are descriptive risk estimates, not live sizing inputs or dependable return forecasts.'])
+                   'GARCH conditional variance estimates and covariance are diagnostics, not live sizing inputs or dependable return forecasts.'])
     json.dumps(result,allow_nan=False)
     with conn:conn.execute('INSERT INTO observations VALUES(?,?)',(snapshot['stamp'],json.dumps(snapshot,allow_nan=False)))
     atomic(folder/'report.json',result)
+    print("GARCH_RESULT "+json.dumps({"version":GARCH_VERSION,"models":len(volatility["forecasts"]),"fitted":sum(m.get("status")=="FITTED_VARIANCE_TARGETED_QML" for m in volatility["forecasts"].values()),"focus":{s:volatility["forecasts"][s] for s in ("SHEL.L","BP.L","XLE","SPY") if s in volatility["forecasts"]}}),flush=True)
     print('GROWTH_RESULT '+json.dumps({'phase':result['status'],'equity_usd':account['equity_usd'],'cash_usd':account['cash_usd'],
            'unrealized_pnl_usd':account['unrealized_pnl_usd'],'holdings':len(groups),'observations':len(observations),
            'rates':rates,'fx_reference':fx_reference,'risk_status':diagnostic['risk']['status'],'history_failures':failures}),flush=True)
@@ -201,6 +213,10 @@ def main(db_text):
         while not STOP.is_set():
             last=conn.execute('SELECT stamp FROM observations ORDER BY stamp DESC LIMIT 1').fetchone()
             wait=0 if not last else interval-(datetime.now(timezone.utc)-datetime.fromisoformat(last[0])).total_seconds()
+            try:
+                current=json.loads((folder/"report.json").read_text())
+                if current.get("volatility",{}).get("version")!=GARCH_VERSION:wait=0
+            except (OSError,ValueError):wait=0
             if wait>0:
                 if STOP.wait(min(wait,60)):break
                 continue

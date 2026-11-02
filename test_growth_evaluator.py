@@ -60,7 +60,8 @@ class GrowthTests(unittest.TestCase):
         self.assertEqual(r['status'],'CURRENT_HOLDINGS_PROXY')
         self.assertAlmostEqual(sum(c['variance_contribution_pct'] for c in r['variance_contributions']),100)
         self.assertLess(r['correlations'][0]['correlation'],-.99)
-        g=r['garch'];self.assertLess(g['alpha']+g['beta'],1);self.assertGreater(g['omega'],0)
+        self.assertEqual(r['garch']['status'],'DEGENERATE_VARIANCE')  # Equal opposite returns cancel to constant.
+        g=garch_grid(x);self.assertLess(g['alpha']+g['beta'],1);self.assertGreater(g['omega'],0)
         self.assertTrue(math.isfinite(g['next_day_vol_pct']))
         self.assertEqual(garch_grid([.01]*10)['status'],'Need126 aligned returns')
     def test_missing_holdings_not_renormalized_and_fx_in_momentum(self):
@@ -126,7 +127,7 @@ class GrowthTests(unittest.TestCase):
             (root/'instrument_cache.json').write_text(json.dumps(mapping))
             main=root/'main.db';c=sqlite3.connect(main)
             c.execute('CREATE TABLE demo_bot_orders(symbol TEXT,status TEXT,position_id INTEGER,created_at TEXT,entry_price REAL,strategy TEXT,amount_usd REAL)')
-            c.execute('CREATE TABLE quotes(symbol TEXT,bid REAL,ask REAL,ts TEXT)');c.commit();c.close()
+            c.execute('CREATE TABLE quotes(symbol TEXT,bid REAL,ask REAL,ts TEXT)');c.execute('CREATE TABLE market_analysis(symbol TEXT,fetched_at TEXT,status TEXT,payload TEXT)');c.commit();c.close()
             own=sqlite3.connect(folder/'growth.sqlite3')
             own.execute('CREATE TABLE observations(stamp TEXT PRIMARY KEY,payload TEXT NOT NULL)')
             rates=observation('2026-11-02',1000)['rates']
@@ -136,6 +137,8 @@ class GrowthTests(unittest.TestCase):
             self.assertEqual(report['equity_usd'],1009)
             self.assertEqual(report['fx_reference']['source'],'completed_daily_candle')
             self.assertTrue(report['fx_reference']['approximate'])
+            self.assertEqual(report['volatility']['version'],'garch11_v2')
+            self.assertEqual(report['volatility']['forecasts']['SHEL.L']['status'],'FITTED_VARIANCE_TARGETED_QML')
             self.assertEqual(report['observations'],1)
             self.assertEqual(report['risk']['status'],'CURRENT_HOLDINGS_PROXY')
             self.assertEqual(len(report['papers']),10)

@@ -81,21 +81,15 @@ def path_report(observations,flows=()):
             "curve":curve}
 
 def garch_grid(returns):
+    from garch_model import fit
     if len(returns)<126:return {"status":"Need126 aligned returns"}
-    r=returns[-252:];mean=st.mean(r);e=[x-mean for x in r];v0=max(variance(e),1e-12);best=None
-    for alpha in (.03,.05,.10,.15):
-        for beta in (.70,.80,.85,.90,.94):
-            if alpha+beta>=.995:continue
-            omega=v0*(1-alpha-beta);v=v0;loss=0.
-            for z in e:
-                v=max(v,1e-12);loss+=math.log(v)+z*z/v
-                v=omega+alpha*z*z+beta*v
-            if best is None or loss<best[0]:best=(loss,alpha,beta,omega,v)
-    _,alpha,beta,omega,v=best
-    return {"status":"DESCRIPTIVE_GRID_FIT","alpha":alpha,"beta":beta,"omega":omega,
-            "next_day_vol_pct":100*math.sqrt(v),"annualized_conditional_vol_pct":100*math.sqrt(v*252),
-            "normal_99pct_one_day_loss_pct":100*2.326347874*math.sqrt(v),"samples":len(r),
-            "method":"GARCH(1,1), zero-mean residuals after window demeaning, variance targeting, finite fixed grid. Not a validated trading forecast or loss bound."}
+    result=fit(returns)
+    if result.get("next_variance") is not None:
+        result["annualized_conditional_vol_pct"]=100*math.sqrt(result["next_variance"]*252)
+        result["normal_99pct_one_day_loss_pct"]=100*2.326347874*math.sqrt(result["next_variance"])
+        result["method"]=result["fit_method"]+"; normal-tail number is an approximation, not a loss bound."
+    return result
+
 
 def holding_diagnostics(holdings,data,fxdata,equity):
     prices={s:{b["fromDate"][:10]:float(b["close"]) for b in bars} for s,bars in data.items()}
