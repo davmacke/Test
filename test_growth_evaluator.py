@@ -114,9 +114,11 @@ class GrowthTests(unittest.TestCase):
                 assert mode=='demo'
                 return {'clientPortfolio':{'credit':100,'positions':[{'positionID':1,'instrumentID':2171,'amount':900,'isBuy':True,'leverage':1,'unrealizedPnL':{'pnL':9}}]}}
             def fetch_rates(self,mapping):
-                return [{'symbol':s,'last':1.25 if s=='GBPUSD' else 100.,'quote_ts':now.isoformat()} for s in mapping]
+                return [{'symbol':s,'last':1.25 if s=='GBPUSD' else 100.,'quote_ts':None if s=='GBPUSD' else now.isoformat()} for s in mapping]
             def fetch_candles(self,instrument,**kw):
                 start=now.replace(hour=0,minute=0,second=0,microsecond=0)-timedelta(days=500)
+                if instrument==4:
+                    return [{'fromDate':(start+timedelta(days=i)).isoformat(),'open':1.25,'close':1.25,'high':1.26,'low':1.24} for i in range(500)]
                 return [{'fromDate':(start+timedelta(days=i)).isoformat(),'open':100+i*.1,'close':100+i*.1,'high':101+i*.1,'low':99+i*.1} for i in range(500)]
         with tempfile.TemporaryDirectory() as root:
             root=Path(root);folder=root/'growth';folder.mkdir()
@@ -132,6 +134,8 @@ class GrowthTests(unittest.TestCase):
                 worker.evaluate(main,folder,own)
             report=json.loads((folder/'report.json').read_text())
             self.assertEqual(report['equity_usd'],1009)
+            self.assertEqual(report['fx_reference']['source'],'completed_daily_candle')
+            self.assertTrue(report['fx_reference']['approximate'])
             self.assertEqual(report['observations'],1)
             self.assertEqual(report['risk']['status'],'CURRENT_HOLDINGS_PROXY')
             self.assertEqual(len(report['papers']),10)

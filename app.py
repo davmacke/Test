@@ -999,6 +999,10 @@ with growth_tab:
             g3.metric("Account unrealized P&L", f"{g['unrealized_pnl_usd']:,.2f} USD")
             st.caption(f"Baseline {g['baseline_at']} · {g['observations']} observations · {g['elapsed_days']:.2f} elapsed days")
             st.write(g["return_method"])
+            if g.get("fx_reference"):
+                st.caption(f"GBP conversion: {g['fx_reference']['source']} · reference date {g['fx_reference']['as_of']}")
+                if g["fx_reference"].get("approximate"):
+                    st.info(g["fx_reference"]["note"])
             currency = st.selectbox("Growth comparison currency", ["GBP","USD"],key="growth-currency")
             curve = pd.DataFrame(g["curve"]).set_index("stamp")
             columns = [f"Portfolio {currency}", f"{currency} cash proxy", f"SPY_{currency}", f"QQQ_{currency}", f"UK100_{currency}"]
