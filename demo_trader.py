@@ -155,8 +155,13 @@ def _close_order(connection, feed, row, log, reason):
 
 
 
+def _execution_check_token():
+    # Dedicated EZJ token is ignored by older deployments, preventing an unintended SOL test during rollout.
+    return os.getenv("DEMO_EZJ_EXECUTION_CHECK_ID", "").strip() or os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip()
+
+
 def _execution_check(connection, feed, log):
-    token = os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip()
+    token = _execution_check_token()
     if not token:
         return
     request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "etoro-demo-check:" + token))
@@ -175,19 +180,35 @@ def _execution_check(connection, feed, log):
             "position_id": prior["position_id"], "message": prior["message"],
         }), flush=True)
         return
-    # Fixed, explicitly requested execution check; independent of strategy signals.
-    mapping = feed.resolve_symbols(["SOL"])
-    meta = mapping.get("SOL") or {}
-    if meta.get("instrument_id") != 100063:
-        raise RuntimeError("Execution check could not verify SOL identity")
-    quotes = feed.fetch_rates({"SOL": meta})
+    # Fixed USD10, explicitly requested demo test; never generalized to normal entries.
+    symbol = ("EZJ.L" if os.getenv("DEMO_EZJ_EXECUTION_CHECK_ID", "").strip()
+              else os.getenv("DEMO_EXECUTION_CHECK_SYMBOL", "SOL").strip().upper())
+    if symbol not in {"SOL", "EZJ.L"}:
+        raise ValueError("Unsupported execution-check symbol")
+    mapping = feed.resolve_symbols([symbol])
+    meta = mapping.get(symbol) or {}
+    instrument_id = meta.get("instrument_id")
+    if not isinstance(instrument_id, int) or instrument_id <= 0 or (symbol == "SOL" and instrument_id != 100063):
+        raise RuntimeError("Execution check could not verify exact symbol identity")
+    quotes = feed.fetch_rates({symbol: meta})
     price = _float(quotes[0].get("ask"))
     bid = _float(quotes[0].get("bid"))
-    problem = market_problem(meta) or quote_problem(quotes[0])
+    market_reason = market_problem(meta)
+    broker_probe = (symbol == "EZJ.L" and os.getenv("DEMO_EZJ_BROKER_PROBE", "").strip().lower() == "true")
+    # Only the user-requested USD10 EZJ demo probe may ask the broker to adjudicate a closed flag.
+    if market_reason == "Market closed" and broker_probe:
+        print("DEMO_EXECUTION_PROBE " + json.dumps({"symbol": symbol, "reported_market_open": meta.get("is_open"),
+              "buy_enabled": meta.get("is_buy_enabled"), "tradable": meta.get("is_currently_tradable")}), flush=True)
+        market_reason = None
+    problem = market_reason or quote_problem(quotes[0])
+    if symbol.endswith(".L"):
+        from bollinger_rsi import completed_daily_candles
+        candles = completed_daily_candles(feed.fetch_candles(instrument_id, count=100), _now())
+        problem = problem or uk_price_problem(symbol, quotes[0], candles[-1]["close"] if candles else None)
     if problem:
         raise RuntimeError("Execution check blocked: " + problem)
     if price <= 0 or bid <= 0 or (price - bid) / price > 0.02:
-        raise RuntimeError("Execution check requires a usable SOL quote")
+        raise RuntimeError("Execution check requires a usable quote")
     fresh = feed.fetch_portfolio("demo")
     cash = _float((fresh.get("clientPortfolio") or {}).get("credit"))
     if cash < 10:
@@ -198,7 +219,7 @@ def _execution_check(connection, feed, log):
            (symbol,instrument_id,request_id,action,status,amount_usd,
             entry_price,stop_rate,target_rate,created_at,updated_at,message)
            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-        ("SOL", 100063, request_id, "open", "SUBMITTING", 10.0,
+        (symbol, instrument_id, request_id, "open", "SUBMITTING", 10.0,
          price, price * 0.95, price * 1.10, stamp, stamp,
          "User-requested 10 USD demo execution check; not a strategy signal"),
     )
@@ -213,7 +234,7 @@ def _execution_check(connection, feed, log):
     connection.commit()
     try:
         result = feed.place_demo_order({
-            "action": "open", "transaction": "buy", "instrumentId": 100063,
+            "action": "open", "transaction": "buy", "instrumentId": instrument_id,
             "orderType": "mkt", "amount": 10.0, "orderCurrency": "usd",
             "leverage": 1, "stopLossType": "fixed",
             "stopLossRate": round(price * 0.95, 8),
@@ -223,15 +244,25 @@ def _execution_check(connection, feed, log):
         _save_order(connection, cursor.lastrowid, "PENDING", order_id=order_id,
                     message="10 USD demo execution check submitted; awaiting broker fill")
         print("DEMO_EXECUTION_CHECK " + json.dumps({
-            "status": "PENDING", "symbol": "SOL", "amount_usd": 10,
+            "status": "PENDING", "symbol": symbol, "amount_usd": 10,
             "order_id": order_id,
         }), flush=True)
     except Exception as error:
         _save_order(connection, cursor.lastrowid, "UNKNOWN",
                     message=f"Execution check outcome unknown: {type(error).__name__}: {error}")
+        response = getattr(error, "response", None)
+        code = getattr(response, "status_code", None)
+        detail = {}
+        if response is not None:
+            try:
+                body = response.json()
+                detail = {k: str(body[k])[:300] for k in ("errorCode", "errorMessage", "message") if k in body}
+            except (ValueError, TypeError): pass
+        if code in {400, 401, 403, 422}:
+            _save_order(connection, cursor.lastrowid, "REJECTED", message="Broker rejected execution check: " + json.dumps(detail))
         print("DEMO_EXECUTION_CHECK " + json.dumps({
-            "status": "UNKNOWN", "error_type": type(error).__name__,
-            "http_status": getattr(getattr(error, "response", None), "status_code", None),
+            "status": "REJECTED" if code in {400, 401, 403, 422} else "UNKNOWN",
+            "symbol": symbol, "error_type": type(error).__name__, "http_status": code, "broker_detail": detail,
         }), flush=True)
         # Persisted request id prevents automatic resubmission after any ambiguity.
 
@@ -271,7 +302,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     if mode != "demo":
         return {"status": "BLOCKED", "message": "Order execution is hard-locked to demo mode."}
 
-    if os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip():
+    if _execution_check_token():
         portfolio = feed.fetch_portfolio("demo")
     client = (portfolio or {}).get("clientPortfolio") or {}
     if not client:
@@ -417,9 +448,10 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
 
     entry_decisions = []
     if state["status"] == "RUNNING":
-        if os.getenv("DEMO_EXECUTION_CHECK_ID", "").strip():
+        if _execution_check_token():
             _execution_check(connection, feed, log)
-            return _snapshot(connection, portfolio, state, managed_open_pnl)
+            if os.getenv("DEMO_EXECUTION_CHECK_CONTINUE", "").strip().lower() != "true":
+                return _snapshot(connection, portfolio, state, managed_open_pnl)
         # A deteriorating signal closes only positions opened by this demo bot.
         signal_by_symbol = {}
         for row in connection.execute("SELECT symbol,payload FROM market_analysis WHERE status='ok'"):
