@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: england-property-scout
+    runtime: python
+    branch: property-scout
+    plan: 0.5c-512mb
+    region: frankfurt
+    buildCommand: python -m compileall -q .
+    startCommand: python app.py
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    disk:
+      name: property-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: AUTO_SCAN
+        value: "true"
+      - key: SCAN_INTERVAL_HOURS
+        value: "12"
+      - key: PAGES_PER_SOURCE
+        value: "20"
+      - key: SCOUT_PASSWORD
+        sync: false
