@@ -768,9 +768,9 @@ with bot_tab:
         st.info(bot_status["stop_reason"])
     pnl_a, pnl_b, pnl_c = st.columns(3)
     pnl_a.metric("Bot open / last-seen P&L", f"{bot_status.get('bot_open_pnl', 0):,.2f} USD")
-    pnl_b.metric("Demo account unrealized P&L change", f"{bot_status.get('account_unrealized_change', 0):,.2f} USD")
+    pnl_b.metric("Demo account unrealized P&L", f"{bot_status.get('account_unrealized_pnl_usd', 0):,.2f} USD")
     pnl_c.metric("Demo account realized P&L change", f"{bot_status.get('account_realized_change', 0):,.2f} USD")
-    st.caption("Account P&L changes include all activity in the demo account since the run began; they are not strategy-only returns.")
+    st.caption("Account unrealized P&L includes all current demo positions. Realized P&L change includes all activity since the run began. The Growth evaluator records a new verified equity baseline.")
     if not demo_orders.empty:
         st.markdown("**Bot order log**")
         st.dataframe(demo_orders, use_container_width=True, hide_index=True)
