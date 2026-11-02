@@ -441,6 +441,11 @@ if os.getenv("GROWTH_EVALUATOR_ENABLED", "true").strip().lower() in {"1","true",
             cwd=str(Path(__file__).resolve().parent),
         )
 
+news_folder = DB.parent / "news"
+news_process = getattr(st, "_news_process", None)
+if news_process is None or news_process.poll() is not None:
+    st._news_process = subprocess.Popen([sys.executable, str(Path(__file__).with_name("news_runner.py")), str(DB.resolve())], cwd=str(Path(__file__).resolve().parent))
+
 st_autorefresh(interval=POLL * 1000, key="dashboard-auto-refresh")
 st.caption(
     f"Universe: up to {LIMIT} instruments · Refresh: {POLL}s · "
@@ -532,8 +537,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab, growth_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers", "Portfolio growth"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab, growth_tab, news_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers", "Portfolio growth", "News & staged entries"]
 )
 
 with signals_tab:
@@ -1051,3 +1056,58 @@ with growth_tab:
             st.download_button("Download growth observations",pd.DataFrame(g["curve"]).to_csv(index=False),file_name="portfolio-growth.csv",mime="text/csv")
         except (OSError,ValueError,KeyError):
             st.warning("Growth report is updating or could not be read. Check evaluator status.")
+
+
+with news_tab:
+    st.subheader("News research and staged-entry comparison")
+    st.caption("Research only: this process archives news discovery and compares hypothetical Shell entries. It does not place additional orders, change stops or override the trade approver.")
+    st.info("A rumour can already be priced in. Renewed disruption, a diplomatic deal and prolonged uncertainty are separate scenarios; headlines do not establish their probabilities.")
+    if demo_row:
+        try:
+            current_bot = json.loads(demo_row["payload"])
+            positions = [o for o in current_bot.get("orders", []) if o.get("status") in ("OPEN","CLOSING") and o.get("strategy") != "execution_check"]
+            capital = sum(float(o.get("amount_usd") or 0) for o in positions)
+            oil_capital = sum(float(o.get("amount_usd") or 0) for o in positions if o.get("symbol") in {"SHEL.L","BP.L","XLE","XOP","USO","OIL","XOM","CVX","COP","EOG","SLB"})
+            st.write(f"Bot entry capital in oil-related positions: {oil_capital:,.2f} USD / {capital:,.2f} USD" + (f" ({100*oil_capital/capital:.1f}%)" if capital else ""))
+            st.caption("Bot positions only, measured by entry notional; this is not whole-account exposure or a recommendation to add.")
+        except (ValueError,TypeError): pass
+    status_file = news_folder / "status.json"
+    report_file = news_folder / "report.json"
+    if status_file.exists():
+        try:
+            state = json.loads(status_file.read_text())
+            st.write(f"News worker: **{state.get('phase')}** · updated {state.get('updated_at')}")
+        except (ValueError,OSError): pass
+    if report_file.exists():
+        try:
+            news = json.loads(report_file.read_text(encoding="utf-8"))
+            st.caption(f"Last fetch started: {news.get('fetched_at')} · polls every {news.get('interval_seconds',900)//60} minutes · source: The GDELT Project")
+            if (age_seconds(news.get("fetched_at")) or 0) > 2*news.get("interval_seconds",900):
+                st.warning("News report is stale. Do not treat it as current coverage.")
+            if news.get("status") != "TRACKING":
+                st.warning("No current validated news feed coverage. Failed or empty searches do not imply calm markets.")
+            st.write("Energy headline context:", news.get("energy_scenario"))
+            st.caption("Diplomacy/conflict tags count words mentioned, including rumours, negations and quotes. They are not verified events, directional sentiment scores or buy signals.")
+            st.dataframe(pd.DataFrame([{"Topic":k,**v} for k,v in news.get("sources",{}).items()]),use_container_width=True,hide_index=True)
+            st.write("Recent topic mentions:",news.get("topic_counts",{}))
+            for article in news.get("articles",[])[:20]:
+                with st.expander(f"{article['domain']} · {article['topic']} · provider seen {article['provider_seen_at']}"):
+                    st.text(article["title"])
+                    st.caption(f"Bot first saw: {article['first_seen_at']} · publication time unavailable · {', '.join(article['tags']) or 'No event keywords'}")
+                    st.link_button("Read original source",article["url"])
+            st.download_button("Download archived news snapshot",json.dumps(news,indent=2),"news_research.json","application/json")
+            st.markdown("**Shell: buy and hold versus staged entries**")
+            staged = news.get("staged_shell",{})
+            st.write(f"Research status: **{staged.get('status','WAITING')}**")
+            rows = staged.get("results",[])
+            if rows:
+                st.dataframe(pd.DataFrame([{k:v for k,v in r.items() if k!="curve"} for r in rows]),use_container_width=True,hide_index=True)
+                latest = max(r["start"] for r in rows)
+                curves = [{"Date":point["date"],"Strategy":r["strategy"],"Equity GBP":point["equity_gbp"]} for r in rows if r["start"]==latest for point in r["curve"]]
+                st.line_chart(pd.DataFrame(curves).pivot(index="Date",columns="Strategy",values="Equity GBP"))
+            with st.expander("Research assumptions and limitations"):
+                for note in staged.get("assumptions",[])+news.get("limitations",[]):st.write(note)
+        except (OSError,ValueError,KeyError,TypeError):
+            st.info("News report is being updated; check NEWS_RESULT/NEWS_ERROR in Render logs.")
+    else:
+        st.info("Waiting for the first news research fetch.")
