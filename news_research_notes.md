@@ -2,7 +2,7 @@
 
 The news worker is read-only and archives GDELT DOC 2.0 article metadata from an explicit source-domain allowlist. It polls three searches every 15 minutes, paced between requests. This is delayed discovery, not early/exclusive information or a trading wire. No publisher article bodies/images are downloaded. No new paid subscription is created.
 
-Every record retains provider discovery time and original bot first-seen time. Availability for a future point-in-time replay is the later of those times; publication time is unknown. Revised titles are separate records. Empty/failed searches are explicitly unavailable and do not imply calm markets. API coverage is partial, capped at 100 matches per query, and syndicated reports are not independent corroboration. Mention tags include negations/quotations, so are not event verification, directional sentiment or likelihood estimates.
+Every record retains its provider timestamp and original bot first-seen time. GDELT timestamps are discovery times; the public Dow Jones RSS fallback supplies publication dates with explicit timestamp labels. The fallback is used when no GDELT query returns accepted results, and failures retain their HTTP status where available. Availability for a future point-in-time replay is the later of those times; publication time is unknown for GDELT records. Revised titles are separate records. Empty/failed searches are explicitly unavailable and do not imply calm markets. API coverage is partial, capped at 100 matches per query, and syndicated reports are not independent corroboration. Mention tags include negations/quotations, so are not event verification, directional sentiment or likelihood estimates.
 
 The News & staged entries tab shows sources, timestamps, scenario mentions, coverage and research results. It does not approve/submit orders, average down live positions, alter broker stops or extend the run deadline.
 
@@ -16,4 +16,4 @@ Sources:
 - https://live.euronext.com/en/financial-news/oil-drops-almost-4-hopes-progress-talks-ending-us-iran-war
 - https://apnews.com/article/8722c8b5a9deb228e7a188d4760ea8ed
 
-Validation: 88 available tests passed, including source/timestamp/first-seen preservation, changed titles, malicious URLs, unavailable feeds, equal-budget costs/cash and real demo approval regressions. Ten unchanged statistical research tests are excluded because their local dependencies are unavailable.
+Validation: 90 available tests passed, including source/timestamp/first-seen preservation, changed titles, malicious URLs, unavailable feeds, equal-budget costs/cash and real demo approval regressions. Ten unchanged statistical research tests are excluded because their local dependencies are unavailable.
