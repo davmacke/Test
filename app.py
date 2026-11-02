@@ -537,8 +537,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab, growth_tab, news_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers", "Portfolio growth", "News & staged entries"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab, growth_tab, news_tab, volatility_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers", "Portfolio growth", "News & staged entries", "Volatility (GARCH)"]
 )
 
 with signals_tab:
@@ -1111,3 +1111,50 @@ with news_tab:
             st.info("News report is being updated; check NEWS_RESULT/NEWS_ERROR in Render logs.")
     else:
         st.info("Waiting for the first news research fetch.")
+
+
+with volatility_tab:
+    from garch_model import shock_projection
+    st.subheader("Conditional volatility · GARCH(1,1)")
+    st.latex(r"\sigma^2_{t+1}=\omega+\alpha\epsilon_t^2+\beta\sigma_t^2")
+    st.caption("Estimates the size of fluctuations, not their direction. Parameters are fitted to up to 252 completed native-currency returns, with a 126-return minimum. These diagnostics do not change orders, stops or position sizes.")
+    file = growth_folder / "report.json"
+    if file.exists():
+        try:
+            volatility = json.loads(file.read_text(encoding="utf-8")).get("volatility",{})
+            models = volatility.get("forecasts",{})
+            st.caption(f"Model version: {volatility.get('version','waiting')} · evaluated {volatility.get('evaluated_at','not yet')}")
+            age = age_seconds(volatility.get("evaluated_at"))
+            if age is not None and age>7200:st.warning("Volatility report is stale. Check the growth evaluator.")
+            rows = [{"Symbol":symbol,"Status":m["status"],"Last completed candle":m.get("as_of"),
+                     "Next-session volatility %":m.get("next_day_vol_pct"),"Long-run volatility %":m.get("long_run_vol_pct"),
+                     "Volatility / long-run":m.get("volatility_ratio"),"Persistence":m.get("persistence"),
+                     "Shock half-life sessions":m.get("half_life_sessions"),
+                     "Held-out check":m.get("validation",{}).get("status")} for symbol,m in models.items()]
+            if rows:st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+            choices = sorted(s for s,m in models.items() if m.get("status")=="FITTED_VARIANCE_TARGETED_QML")
+            if choices:
+                symbol = st.selectbox("Instrument volatility",choices,index=choices.index("SHEL.L") if "SHEL.L" in choices else 0,key="garch-symbol")
+                model = models[symbol]
+                if model.get("boundary_fit"):st.warning("Parameters are near a model boundary. Persistence and half-life may be weakly identified; interpret the forecast cautiously.")
+                c1,c2,c3 = st.columns(3)
+                c1.metric("Next-session estimated volatility",f"{model['next_day_vol_pct']:.2f}%")
+                c2.metric("Long-run estimate",f"{model['long_run_vol_pct']:.2f}%")
+                c3.metric("Variance-shock half-life",f"{model['half_life_sessions']:.1f} sessions")
+                st.caption(f"Forecast starts after completed candle {model['as_of']}. Today's incomplete return is excluded. Stock sessions and crypto calendar days differ.")
+                shock = st.slider("Hypothetical innovation magnitude (%)",0.0,15.0,4.0,.5,key="garch-shock")
+                stressed = shock_projection(model,shock)
+                chart = [{"Session horizon":r["horizon_sessions"],"Scenario":"Baseline","Volatility %":r["point_vol_pct"]} for r in model["projection"]]
+                chart += [{"Session horizon":r["horizon_sessions"],"Scenario":f"After ±{shock:g}% innovation","Volatility %":r["point_vol_pct"]} for r in stressed]
+                st.line_chart(pd.DataFrame(chart).pivot(index="Session horizon",columns="Scenario",values="Volatility %"))
+                st.caption("Point volatility at each horizon, not a cumulative price return. The stress scenario inserts one hypothetical innovation into the next observation, then projects the sessions following it. Positive and negative shocks are identical in symmetric GARCH.")
+                st.write("Model parameters:",{k:model[k] for k in ("omega","alpha","beta","persistence","samples","standardized_squared_residual_lag1")})
+                st.write("Historical forecast check:",model.get("validation",{}))
+                st.caption("The last 63 observations are withheld from parameter estimation and processed sequentially. GARCH is compared with EWMA(0.94) and constant variance; lower QLIKE is better. One split is not robust evidence of predictive skill.")
+            else:st.info("Waiting for sufficiently long, current candle histories.")
+            with st.expander("Model limitations"):
+                for note in volatility.get("limitations",[]):st.write(note)
+                st.write("Method: variance-targeted Gaussian quasi-likelihood, bounded parameter grid with local refinement; not an unconstrained full maximum-likelihood fit.")
+            st.download_button("Download volatility diagnostics",json.dumps(volatility,indent=2),"garch-volatility.json","application/json")
+        except (OSError,ValueError,KeyError,TypeError):st.info("Volatility report is updating. Check GARCH_RESULT/GROWTH_ERROR logs.")
+    else:st.info("Waiting for the growth evaluator's volatility report.")
