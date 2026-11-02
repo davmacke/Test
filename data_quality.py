@@ -66,3 +66,19 @@ def market_problem(meta, now=None):
         if not flag:
             return blocked
     return None
+
+
+def uk_price_problem(symbol, quote, reference_close):
+    """Reject missing or incompatible native price scales; never guess GBP/GBX conversion."""
+    if not symbol.upper().endswith(".L"):
+        return None
+    try:
+        reference = float(reference_close)
+        price = float(quote.get("ask") or quote.get("last"))
+        if not all(math.isfinite(v) and v > 0 for v in (reference, price)):
+            raise ValueError("Invalid UK price")
+    except (TypeError, ValueError, OverflowError):
+        return "UK candle/quote scale check unavailable"
+    if not .5 <= price / reference <= 2:
+        return "UK candle/quote price scales disagree"
+    return None
