@@ -430,6 +430,15 @@ if copy_id and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", copy_id):
             cwd=str(Path(__file__).resolve().parent),
         )
 
+growth_folder = DB.parent / "growth"
+if os.getenv("GROWTH_EVALUATOR_ENABLED", "true").strip().lower() in {"1","true","yes"}:
+    growth_process = getattr(st, "_growth_process", None)
+    if growth_process is None or growth_process.poll() is not None:
+        st._growth_process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).with_name("growth_runner.py")), str(DB.resolve())],
+            cwd=str(Path(__file__).resolve().parent),
+        )
+
 st_autorefresh(interval=POLL * 1000, key="dashboard-auto-refresh")
 st.caption(
     f"Universe: up to {LIMIT} instruments · Refresh: {POLL}s · "
@@ -521,8 +530,8 @@ if portfolio_row and portfolio_row["status"] == "error":
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
 
-signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab = st.tabs(
-    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers"]
+signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab, growth_tab = st.tabs(
+    ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers", "Portfolio growth"]
 )
 
 with signals_tab:
@@ -962,3 +971,68 @@ with copy_tab:
                 st.download_button("Download selected monthly results", pd.DataFrame(monthly).to_csv(index=False),file_name=f"copy-monthly-{copy_id}.csv",mime="text/csv")
             except (OSError, ValueError, KeyError):
                 st.warning("Disclosure report could not be read. Check worker status.")
+
+with growth_tab:
+    st.subheader("Portfolio growth and benchmark evaluator")
+    st.caption("Separate read-only hourly process · entire eToro demo account · persistent observations")
+    st.write("This records a new equity baseline, compares USD and GBP growth with stock-price and interest-rate benchmarks, "
+             "and evaluates the current holdings. Manual and bot positions both contribute to whole-account results.")
+    growth_report = growth_folder / "report.json"
+    growth_status = growth_folder / "status.json"
+    if growth_status.exists():
+        try:
+            gs = json.loads(growth_status.read_text(encoding="utf-8"))
+            st.write(f"Evaluator: **{gs.get('phase', 'UNKNOWN')}** · updated {gs.get('updated_at')}")
+            if gs.get("error_type"):
+                st.warning(f"Evaluator retrying after {gs['error_type']}. Trading runs in its separate worker.")
+        except (OSError, ValueError):
+            st.info("Evaluator status updating.")
+    if not growth_report.exists():
+        st.info("Waiting for the evaluator's first fresh portfolio snapshot and historical coverage checks.")
+    else:
+        try:
+            growth_text = growth_report.read_text(encoding="utf-8")
+            g = json.loads(growth_text)
+            g1,g2,g3 = st.columns(3)
+            g1.metric("Account equity", f"{g['equity_usd']:,.2f} USD")
+            g2.metric("Available cash", f"{g['cash_usd']:,.2f} USD")
+            g3.metric("Account unrealized P&L", f"{g['unrealized_pnl_usd']:,.2f} USD")
+            st.caption(f"Baseline {g['baseline_at']} · {g['observations']} observations · {g['elapsed_days']:.2f} elapsed days")
+            st.write(g["return_method"])
+            currency = st.selectbox("Growth comparison currency", ["GBP","USD"],key="growth-currency")
+            curve = pd.DataFrame(g["curve"]).set_index("stamp")
+            columns = [f"Portfolio {currency}", f"{currency} cash proxy", f"SPY_{currency}", f"QQQ_{currency}", f"UK100_{currency}"]
+            st.line_chart(curve[[c for c in columns if c in curve]])
+            st.caption("Normalized to100 at baseline. Stock benchmarks are price-only and exclude dividend reinvestment. Cash proxies are hypothetical, not deposit products or interest earned on eToro.")
+            st.write("Tracking statistics:", {k:g.get(k) for k in ("return_usd_pct","return_gbp_pct","max_observed_drawdown_pct","complete_daily_returns","annual_volatility_pct","sharpe","cagr_pct")})
+            st.info(g["metrics_status"])
+            st.subheader("Dated interest-rate benchmarks")
+            rates = [dict(currency=c, **r) for c,r in g["latest_rates"].items()]
+            st.dataframe(pd.DataFrame(rates),use_container_width=True,hide_index=True)
+            if g.get("rate_fetch_errors"):
+                st.caption(f"Live source fetch limitations: {g['rate_fetch_errors']}. Seed/cached rates retain their source dates and expiry.")
+            st.subheader("Current holdings and stock performance")
+            st.dataframe(pd.DataFrame(g["holdings"]),use_container_width=True,hide_index=True)
+            risk = g["risk"]
+            st.write(f"Historical risk status: **{risk['status']}** · invested-value coverage {risk['holding_value_coverage_pct']:.1f}%")
+            st.caption(risk["note"])
+            if risk.get("status") == "CURRENT_HOLDINGS_PROXY":
+                st.write("Proxy annual volatility %:", risk.get("annual_volatility_pct"))
+                st.write("GARCH conditional-risk diagnostic:", risk.get("garch"))
+                st.dataframe(pd.DataFrame(risk.get("variance_contributions",[])),use_container_width=True,hide_index=True)
+                st.dataframe(pd.DataFrame(risk.get("correlations",[])),use_container_width=True,hide_index=True)
+                st.caption(risk["calendar"])
+            st.subheader("Execution quality")
+            st.dataframe(pd.DataFrame(g.get("execution_quality",[])),use_container_width=True,hide_index=True)
+            st.caption("Reconstructed nearest preceding mid quote to fill; includes spread, excludes commissions, and is not a market-impact estimate.")
+            with st.expander("Research methods and limitations"):
+                st.dataframe(pd.DataFrame(g["papers"]),use_container_width=True,hide_index=True)
+                for note in g["limitations"]:
+                    st.write(note)
+                if g.get("history_failures"):
+                    st.write("Historical data failures:", g["history_failures"])
+                st.write("External cash-flow adjustments are read from the evaluator's flows.json ledger. A sale of an existing holding is an internal trade.")
+            st.download_button("Download growth evaluation",growth_text,file_name="portfolio-growth.json",mime="application/json")
+            st.download_button("Download growth observations",pd.DataFrame(g["curve"]).to_csv(index=False),file_name="portfolio-growth.csv",mime="text/csv")
+        except (OSError,ValueError,KeyError):
+            st.warning("Growth report is updating or could not be read. Check evaluator status.")
