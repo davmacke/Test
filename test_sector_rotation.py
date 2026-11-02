@@ -76,7 +76,7 @@ class RotationTests(unittest.TestCase):
         namespace=dict(datetime=datetime,timezone=timezone,json=json,CANDLE_REFRESH_SECONDS=1800,
             CANDLES_PER_CYCLE=100,ROTATION_SYMBOLS=SUPPORTED,analyze_rotation=analyze_rotation,
             analyze_bollinger_rsi=analyze_bollinger_rsi,completed_daily_candles=completed_daily_candles,
-            RISK_PER_TRADE_PCT=.5,MAX_POSITION_PCT=5,
+            RISK_PER_TRADE_PCT=.5,MAX_POSITION_PCT=5, UK_SYMBOLS=(),
             analyze_candles=lambda *a,**kw:{"action":"HOLD / WATCH"},log=lambda *a:None)
         exec(compile(ast.Module(body=functions,type_ignores=[]),"<refresh-analysis>","exec"),namespace)
         mapping={s:{"instrument_id":i} for i,s in enumerate(h)}

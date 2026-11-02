@@ -18,11 +18,11 @@ from bollinger_rsi import analyze_bollinger_rsi, completed_daily_candles
 from sector_rotation import analyze_rotation, SUPPORTED as ROTATION_SYMBOLS
 from data_quality import quote_problem, age_seconds
 from demo_trader import run_demo_cycle
-from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS
+from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS, UK_SYMBOLS
 
 DB = Path(os.getenv("DATABASE_PATH", "scanner.sqlite3"))
 POLL = max(30, int(os.getenv("POLL_SECONDS", "60")))
-LIMIT = max(20, min(100, int(os.getenv("UNIVERSE_LIMIT", "100"))))
+LIMIT = max(20, min(120, int(os.getenv("UNIVERSE_LIMIT", "120"))))
 MODE = os.getenv("ETORO_TRADING_MODE", "demo").strip().lower()
 if MODE not in {"demo", "real"}:
     MODE = "demo"
@@ -215,6 +215,7 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
         except (TypeError, ValueError, json.JSONDecodeError):
             stale.append(symbol)
 
+    stale.sort(key=lambda symbol: (symbol not in UK_SYMBOLS, symbol in cache_rows))
     for symbol in stale[:CANDLES_PER_CYCLE]:
         instrument_id = mapping[symbol]["instrument_id"]
         try:
@@ -230,6 +231,11 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
                 candles, current_price=latest_prices.get(symbol), equity=equity,
                 risk_per_trade_pct=RISK_PER_TRADE_PCT, max_position_pct=MAX_POSITION_PCT,
             )
+            if symbol in UK_SYMBOLS:
+                completed = completed_daily_candles(candles, now)
+                reference = completed[-1]["close"] if completed else None
+                result["uk_reference_close"] = reference
+                result["bollinger_rsi"]["uk_reference_close"] = reference
             if symbol in (*ROTATION_SYMBOLS, "SPY"):
                 result["rotation_history"] = completed_daily_candles(candles, now)[-61:]
             bb = result["bollinger_rsi"]
@@ -347,6 +353,17 @@ def refresh_once():
             connection, feed, mapping, latest_prices,
             risk["estimated_account_value_usd"],
         )
+        uk_rows = []
+        quotes_by_symbol = {q["symbol"]: q for q in quotes}
+        for symbol in UK_SYMBOLS:
+            row = connection.execute("SELECT status,payload FROM market_analysis WHERE symbol=?", (symbol,)).fetchone()
+            payload = json.loads(row["payload"]) if row else {}
+            q = quotes_by_symbol.get(symbol) or {}
+            uk_rows.append({"symbol": symbol, "instrument_id": mapping.get(symbol, {}).get("instrument_id"),
+                            "quote": q.get("last"), "quote_status": quote_problem(q),
+                            "bars": payload.get("bars"), "reference_close": payload.get("uk_reference_close"),
+                            "trend": payload.get("action"), "bollinger_rsi": (payload.get("bollinger_rsi") or {}).get("action")})
+        print("UK_MARKET_STATUS " + json.dumps(uk_rows), flush=True)
         def bot_log(level, message):
             log(connection, level, message)
         demo_status = run_demo_cycle(connection, feed, mapping, quotes, portfolio, bot_log)
@@ -516,7 +533,7 @@ with signals_tab:
         "Signals are rule outputs, not guaranteed outcomes."
     )
     if analyses.empty:
-        st.info("Historical candles are being loaded gradually. Initial coverage for 100 symbols can take around ten minutes.")
+        st.info("Historical candles are being loaded gradually. Initial coverage for the configured symbols can take around ten minutes.")
     else:
         records = []
         bb_records = []
@@ -534,7 +551,8 @@ with signals_tab:
                 "Asset class": asset_class,
                 "Signal": result.get("action", row["status"].upper()),
                 "Score": result.get("score"),
-                "Price": price,
+                "Price (broker units)": price,
+                "Listing": "UK / London" if row["symbol"] in UK_SYMBOLS else "Other",
                 "Quote status": quote.iloc[0]["quote_status"] if not quote.empty else "Unavailable",
                 "Broker quote time": quote.iloc[0]["quote_ts"] if not quote.empty else None,
                 "RSI (14)": result.get("rsi14"),
@@ -685,13 +703,14 @@ with feed_tab:
     st.subheader("Market data and service status")
     st.write(f"Selected account mode: **{MODE.upper()}** (portfolio read only)")
     st.write(f"Quote polling: every {POLL} seconds; candle analysis refresh: every {CANDLE_REFRESH_SECONDS // 60} minutes.")
-    st.write(f"Analysis uses up to {LIMIT} configured symbols. The universe includes crypto, commodities, currencies, indices, ETFs, and stocks; unsupported symbols are skipped.")
+    st.write(f"Analysis uses up to {LIMIT} configured symbols. The universe includes crypto, commodities, currencies, indices, ETFs, US stocks and 20 London-listed UK shares; unsupported symbols are skipped.")
     st.write(f"Risk sizing defaults: {RISK_PER_TRADE_PCT:g}% account risk per candidate, {MAX_POSITION_PCT:g}% maximum estimated account allocation.")
     if not analyses.empty:
         status_counts = analyses["status"].value_counts().to_dict()
         st.write("Analysis cache status:", status_counts)
     if portfolio_row:
         st.write(f"Portfolio snapshot: {portfolio_row['status']} · {portfolio_row['fetched_at']}")
+    st.caption("UK share prices and stop/target rates stay in broker quote units, commonly GBX (pence). Order budgets are USD amounts; eToro calculates the share units.")
     st.markdown("**Latest quotes**")
     if quotes.empty:
         st.info("Waiting for the first successful eToro market-data response.")

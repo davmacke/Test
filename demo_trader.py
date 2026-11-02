@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from analysis import portfolio_risk
 from sector_rotation import STRATEGY as ROTATION_STRATEGY, plan_rotation_entry
 from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
-from data_quality import quote_problem, market_problem, utc_timestamp
+from data_quality import quote_problem, market_problem, utc_timestamp, uk_price_problem
 
 
 ACTIVE_ORDER_STATES = {"SUBMITTING", "UNKNOWN", "PENDING", "OPEN", "CLOSING", "CANCELLING"}
@@ -258,7 +258,8 @@ def _evaluate_entry(feed, symbol, meta, quote, analysis):
     if not fresh or fresh.get("instrument_id") != meta.get("instrument_id"):
         return "Market status refresh returned no matching instrument", {}
     now = _now()
-    reason = market_problem(fresh, now) or quote_problem(quote, now)
+    reason = (market_problem(fresh, now) or quote_problem(quote, now)
+              or uk_price_problem(symbol, quote, analysis.get("uk_reference_close")))
     return reason, fresh
 
 
