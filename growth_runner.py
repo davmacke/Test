@@ -9,6 +9,7 @@ import signal
 import sqlite3
 import sys
 import threading
+import traceback
 import time
 from datetime import datetime,timedelta,timezone
 import requests
@@ -199,7 +200,9 @@ def main(db_text):
                 atomic(folder/'status.json',{'phase':'TRACKING','updated_at':datetime.now(timezone.utc).isoformat(),'interval_seconds':interval})
             except Exception as error:
                 atomic(folder/'status.json',{'phase':'FAILED_RETRYING','error_type':type(error).__name__,'updated_at':datetime.now(timezone.utc).isoformat()})
-                print('GROWTH_ERROR '+type(error).__name__,flush=True)
+                frame=traceback.extract_tb(error.__traceback__)[-1]
+                detail=str(error)[:180] if isinstance(error,(ValueError,KeyError,TypeError)) else ''
+                print('GROWTH_ERROR '+json.dumps({'type':type(error).__name__,'file':Path(frame.filename).name,'line':frame.lineno,'detail':detail}),flush=True)
                 if STOP.wait(60):break
     finally:conn.close();lock.close()
 

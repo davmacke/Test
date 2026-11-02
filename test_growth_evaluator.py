@@ -71,6 +71,13 @@ class GrowthTests(unittest.TestCase):
         out=holding_diagnostics(h,{'RR.L':a},fx,1000)
         self.assertGreater(out['holdings'][0]['return_252_sessions_pct'],0)
         json.dumps(out,allow_nan=False)
+    def test_market_holiday_alignment_uses_identical_return_intervals(self):
+        prices=bars([.02 if i%3==0 else -.007 for i in range(400)])
+        sparse=prices[::2]
+        h=[{'symbol':s,'value_usd':500,'history_eligible':True} for s in ('A','B')]
+        r=holding_diagnostics(h,{'A':prices,'B':sparse},[],1000)['risk']
+        self.assertEqual(r['status'],'CURRENT_HOLDINGS_PROXY')
+        self.assertAlmostEqual(r['correlations'][0]['correlation'],1)
     def test_rate_parser_and_seed_expiry(self):
         class Response:
             text='<h2>Current Bank Rate 3.75%</h2>Published on 17 September 2026'
