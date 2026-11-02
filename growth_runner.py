@@ -114,8 +114,16 @@ def evaluate(db,folder,conn):
     fxquote=quotes.get('GBPUSD') or {}
     fx=number(fxquote.get('last'),None)
     fxage=age_seconds(fxquote.get('quote_ts'),now)
-    if fxage is None or not -5<=fxage<=7*86400:raise ValueError('GBPUSD reference stale or missing timestamp')
-    if fx is None or fx<=0:raise ValueError('GBPUSD unavailable')
+    fx_bars=None
+    fx_reference={'source':'timestamped_quote','as_of':fxquote.get('quote_ts'),'approximate':False}
+    if fx is None or fx<=0 or fxage is None or not -5<=fxage<=7*86400:
+        if 'GBPUSD' not in selected:raise ValueError('GBPUSD instrument unresolved')
+        fx_bars=completed_daily_candles(feed.fetch_candles(selected['GBPUSD']['instrument_id'],count=500),now)
+        if not fx_bars or (now-datetime.fromisoformat(fx_bars[-1]['fromDate'])).total_seconds()>7*86400:
+            raise ValueError('No timestamped GBPUSD quote or recent completed FX candle')
+        fx=fx_bars[-1]['close']
+        fx_reference={'source':'completed_daily_candle','as_of':fx_bars[-1]['fromDate'],'approximate':True,
+                      'note':'GBP values use a dated completed-candle FX reference because the spot quote timestamp is unavailable or stale.'}
     previous=conn.execute('SELECT payload FROM observations ORDER BY stamp DESC LIMIT 1').fetchone()
     last=json.loads(previous[0]) if previous else {}
     rates,rate_errors=rate_sources(now,last.get('rates',{}))
@@ -126,7 +134,7 @@ def evaluate(db,folder,conn):
         if age is None or not -5<=age<=7*86400:value=None
         benchmarks[s+'_USD']=value*fx if s=='UK100' and value else value
     snapshot={'stamp':now.isoformat(),**account,'gbpusd':fx,'rates':rates,'benchmarks':benchmarks,
-              'quote_dates':{s:q.get('quote_ts') for s,q in quotes.items()},'holdings':list(groups.values())}
+              'quote_dates':{s:q.get('quote_ts') for s,q in quotes.items()},'fx_reference':fx_reference,'holdings':list(groups.values())}
     data={};failures={}
     history=folder/'candles';history.mkdir(exist_ok=True)
     wanted={h['symbol']:h['instrument_id'] for h in groups.values()}
@@ -134,7 +142,9 @@ def evaluate(db,folder,conn):
     for s,instrument in wanted.items():
         file=history/(str(instrument)+'.json')
         try:
-            if file.exists() and time.time()-file.stat().st_mtime<21600:bars=json.loads(file.read_text())
+            if s=='GBPUSD' and fx_bars is not None:
+                bars=fx_bars;atomic(file,bars)
+            elif file.exists() and time.time()-file.stat().st_mtime<21600:bars=json.loads(file.read_text())
             else:
                 bars=completed_daily_candles(feed.fetch_candles(instrument,count=500),now);atomic(file,bars);time.sleep(1.2)
             if not bars or (now-datetime.fromisoformat(bars[-1]['fromDate'])).total_seconds()>7*86400:
@@ -154,7 +164,7 @@ def evaluate(db,folder,conn):
     bot_pnl=sum(position_pnl(active[str(o['position_id'])]) for o in orders
                 if o.get('strategy')!='execution_check' and str(o.get('position_id')) in active)
     papers=json.loads(Path(__file__).with_name('research_methods.json').read_text(encoding='utf-8'))
-    result.update(**diagnostic,latest_rates=rates,rate_fetch_errors=rate_errors,history_failures=failures,
+    result.update(**diagnostic,fx_reference=fx_reference,latest_rates=rates,rate_fetch_errors=rate_errors,history_failures=failures,
                   execution_quality=execution,bot_strategy_open_pnl_usd=bot_pnl,papers=papers,
                   source='Fresh eToro demo P&L API; current holdings and balances. Market-data GETs only.',
                   limitations=[
@@ -172,7 +182,7 @@ def evaluate(db,folder,conn):
     atomic(folder/'report.json',result)
     print('GROWTH_RESULT '+json.dumps({'phase':result['status'],'equity_usd':account['equity_usd'],'cash_usd':account['cash_usd'],
            'unrealized_pnl_usd':account['unrealized_pnl_usd'],'holdings':len(groups),'observations':len(observations),
-           'rates':rates,'risk_status':diagnostic['risk']['status'],'history_failures':failures}),flush=True)
+           'rates':rates,'fx_reference':fx_reference,'risk_status':diagnostic['risk']['status'],'history_failures':failures}),flush=True)
 
 def main(db_text):
     db=Path(db_text);folder=db.parent/'growth';folder.mkdir(parents=True,exist_ok=True)
