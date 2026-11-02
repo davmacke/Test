@@ -50,6 +50,9 @@ def main(db_text):
                 report=collect(c,paced_get,now)
                 try:report["staged_shell"]=shell_research(db,now)
                 except Exception as error:report["staged_shell"]={"status":"FAILED_RETRYING","error":type(error).__name__}
+                rows=report["staged_shell"].get("results",[])
+                latest=max((r["start"] for r in rows),default=None)
+                print("NEWS_STAGED_RESULT "+json.dumps([{k:v for k,v in r.items() if k!="curve"} for r in rows if r["start"]==latest]),flush=True)
                 report["interval_seconds"]=interval
                 atomic(folder/"report.json",report)
                 atomic(folder/"status.json",{"phase":report["status"],"updated_at":datetime.now(timezone.utc).isoformat()})

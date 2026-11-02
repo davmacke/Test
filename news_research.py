@@ -6,6 +6,8 @@ import re
 from datetime import datetime,timedelta,timezone
 from statistics import mean
 from urllib.parse import urlsplit,urlunsplit
+from email.utils import parsedate_to_datetime
+import xml.etree.ElementTree as ET
 from bollinger_rsi import completed_daily_candles
 from data_quality import utc_timestamp
 
@@ -15,7 +17,7 @@ QUERIES={
  "Technology":'("technology stocks" OR Nvidia OR "AI spending") sourcelang:english',
  "Macro":'("Federal Reserve" OR "Bank of England" OR "trade tariffs") sourcelang:english'}
 DOMAINS=("reuters.com","apnews.com","bbc.com","bbc.co.uk","cnbc.com","ft.com","bloomberg.com","theguardian.com",
-         "euronext.com","shell.com","bp.com","eia.gov","opec.org","ukmto.org","federalreserve.gov","bankofengland.co.uk")
+         "euronext.com","shell.com","bp.com","eia.gov","opec.org","ukmto.org","federalreserve.gov","bankofengland.co.uk","wsj.com")
 EVENTS={
  "Diplomacy mentioned":r"\b(ceasefire|diploma\w*|negotiat\w*|peace|reopen\w*|talks)\b",
  "Conflict/disruption mentioned":r"\b(attack\w*|strike\w*|missile\w*|blockade\w*|disrupt\w*|war|sanction\w*)\b",
@@ -35,7 +37,8 @@ def normalize(article,topic,now):
             "provider_seen_at":stamp.isoformat(),"first_seen_at":now.isoformat(),
             "tags":[name for name,pattern in EVENTS.items() if re.search(pattern,title,re.I)],
             "verification":"Headline mention only; event truth/direction not independently verified",
-            "publication_at":None}
+            "publication_at":article.get("publication_at"),
+            "provider_time_kind":article.get("provider_time_kind","gdelt_discovery")}
 
 def available_at(article):
     # Backtests must not treat provider timestamps as the bot's earlier knowledge.
@@ -47,6 +50,34 @@ def initialize(c):
       first_seen_at TEXT,last_seen_at TEXT,payload TEXT)""")
     c.execute("CREATE TABLE IF NOT EXISTS fetches(stamp TEXT PRIMARY KEY,payload TEXT)")
     c.commit()
+
+RSS_FEEDS = {"Dow Jones markets RSS":"https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
+             "Dow Jones world RSS":"https://feeds.content.dowjones.io/public/rss/RSSWorldNews"}
+
+def parse_rss(text):
+    if len(text)>2000000 or "<!DOCTYPE" in text.upper() or "<!ENTITY" in text.upper():raise ValueError("Invalid or oversized XML")
+    root=ET.fromstring(text);output=[]
+    for item in root.findall(".//item")[:150]:
+        try:
+            stamp=parsedate_to_datetime(item.findtext("pubDate") or "")
+            if stamp.tzinfo is None:continue
+        except (ValueError,TypeError,OverflowError):continue
+        output.append({"url":item.findtext("link"),"title":item.findtext("title"),"seendate":stamp.isoformat(),
+                       "publication_at":stamp.isoformat(),"provider_time_kind":"publisher_rss_publication"})
+    return output
+
+def save(c,a,now):
+    old=c.execute("SELECT first_seen_at,payload FROM articles WHERE id=?",(a["id"],)).fetchone()
+    if old:
+        original=json.loads(old[1]);a["first_seen_at"]=old[0]
+        for key in ("provider_seen_at","topic","publication_at","provider_time_kind"):
+            if key in original:a[key]=original[key]
+    c.execute("INSERT OR REPLACE INTO articles VALUES(?,?,?,?,?,?,?,?,?)",
+      (a["id"],a["url"],a["domain"],a["title"],a["topic"],a["provider_seen_at"],a["first_seen_at"],now.isoformat(),json.dumps(a)))
+    return int(old is None)
+
+def error_info(error):
+    return {"status":"FAILED","error":type(error).__name__,"http_status":getattr(getattr(error,"response",None),"status_code",None)}
 
 def collect(c,get,now):
     initialize(c);outcomes={};new=0
@@ -61,17 +92,22 @@ def collect(c,get,now):
             for raw in articles:
                 a=normalize(raw,topic,now)
                 if a is None:continue
-                old=c.execute("SELECT first_seen_at,payload FROM articles WHERE id=?",(a["id"],)).fetchone()
-                if old:
-                    original=json.loads(old[1]);a["first_seen_at"]=old[0]
-                    a["provider_seen_at"]=original["provider_seen_at"];a["topic"]=original["topic"]
-                else:new+=1
-                c.execute("INSERT OR REPLACE INTO articles VALUES(?,?,?,?,?,?,?,?,?)",
-                  (a["id"],a["url"],a["domain"],a["title"],a["topic"],a["provider_seen_at"],
-                   a["first_seen_at"],now.isoformat(),json.dumps(a)))
+                new+=save(c,a,now)
                 accepted+=1
             outcomes[topic]={"status":"OK" if accepted else "NO_MATCHES","received":len(articles),"accepted":accepted}
-        except Exception as error:outcomes[topic]={"status":"FAILED","error":type(error).__name__}
+        except Exception as error:outcomes[topic]=error_info(error)
+    if not any(v["status"]=="OK" for v in outcomes.values()):
+        for name,url in RSS_FEEDS.items():
+            try:
+                response=get(url,timeout=15);response.raise_for_status();items=parse_rss(response.text);accepted=0
+                for raw in items:
+                    title=str(raw.get("title",""))
+                    topic=("Energy and geopolitics" if re.search(r"\b(oil|brent|iran|hormuz|shell|opec|ceasefire)\b",title,re.I) else
+                           "Technology" if re.search(r"\b(tech\w*|nvidia|artificial intelligence|AI|semiconductor\w*)\b",title,re.I) else "Macro")
+                    a=normalize(raw,topic,now)
+                    if a is not None:new+=save(c,a,now);accepted+=1
+                outcomes[name]={"status":"OK" if accepted else "NO_MATCHES","received":len(items),"accepted":accepted}
+            except Exception as error:outcomes[name]=error_info(error)
     c.execute("INSERT OR REPLACE INTO fetches VALUES(?,?)",(now.isoformat(),json.dumps(outcomes)))
     c.commit()
     rows=[json.loads(r[0]) for r in c.execute("SELECT payload FROM articles ORDER BY provider_seen_at DESC LIMIT 150")]
@@ -86,7 +122,7 @@ def collect(c,get,now):
             "mention_counts":tags,"energy_scenario":"BOTH_SCENARIOS_MENTIONED" if mixed else "MANUAL_REVIEW_REQUIRED",
             "execution_mode":"RESEARCH_ONLY",
             "limitations":["GDELT discovery is delayed/incomplete, not a low-latency trading wire.",
-              "Provider seen time is not publication time. Bot first-seen is retained; revised titles create new records.",
+              "GDELT discovery time differs from publication time; publisher RSS dates are labeled publication. Bot first-seen is retained; revised titles create new records.",
               "Distinct domains may repeat one wire report; counts are not independent confirmations.",
               "Keyword tags describe mentions, including negations and quotations; they do not verify facts or estimate direction/probability.",
               "Rumours do not override trade approval. Archived first-seen records are needed for a later point-in-time news replay."]}

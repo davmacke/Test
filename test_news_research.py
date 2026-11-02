@@ -70,4 +70,26 @@ class NewsTests(unittest.TestCase):
         self.assertEqual([x["purchases"] for x in r["results"]],[x["purchases"] for x in other["results"]])
     def test_insufficient_history_is_explicit(self):
         self.assertEqual(n.staged_replay([],NOW)["status"],"NEED_MORE_HISTORY")
+    def test_publisher_rss_fallback_preserves_publication_and_first_seen(self):
+        xml="<rss><channel><item><title>Oil falls as Iran talks progress</title><link>https://www.wsj.com/world/iran-test</link><pubDate>Mon, 02 Nov 2026 18:00:00 GMT</pubDate></item></channel></rss>"
+        class RSSResponse:
+            text=xml
+            def raise_for_status(self):pass
+        def get(url,**kwargs):
+            if url==n.ENDPOINT:raise ValueError("Search provider unavailable")
+            return RSSResponse()
+        c=sqlite3.connect(":memory:")
+        try:
+            report=n.collect(c,get,NOW)
+            self.assertEqual(report["status"],"TRACKING")
+            self.assertEqual(report["new_articles"],1)
+            a=report["articles"][0]
+            self.assertEqual(a["provider_time_kind"],"publisher_rss_publication")
+            self.assertEqual(a["publication_at"],"2026-11-02T18:00:00+00:00")
+            self.assertEqual(a["first_seen_at"],NOW.isoformat())
+            self.assertEqual(n.available_at(a),NOW)
+            self.assertEqual(a["topic"],"Energy and geopolitics")
+        finally:c.close()
+    def test_xml_entities_are_rejected(self):
+        with self.assertRaises(ValueError):n.parse_rss('<!DOCTYPE rss [<!ENTITY test "bad">]><rss/>')
 if __name__=="__main__":unittest.main()

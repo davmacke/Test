@@ -1081,7 +1081,7 @@ with news_tab:
     if report_file.exists():
         try:
             news = json.loads(report_file.read_text(encoding="utf-8"))
-            st.caption(f"Last fetch started: {news.get('fetched_at')} · polls every {news.get('interval_seconds',900)//60} minutes · source: The GDELT Project")
+            st.caption(f"Last fetch started: {news.get('fetched_at')} · polls every {news.get('interval_seconds',900)//60} minutes · sources: GDELT discovery / Dow Jones RSS fallback")
             if (age_seconds(news.get("fetched_at")) or 0) > 2*news.get("interval_seconds",900):
                 st.warning("News report is stale. Do not treat it as current coverage.")
             if news.get("status") != "TRACKING":
@@ -1091,9 +1091,9 @@ with news_tab:
             st.dataframe(pd.DataFrame([{"Topic":k,**v} for k,v in news.get("sources",{}).items()]),use_container_width=True,hide_index=True)
             st.write("Recent topic mentions:",news.get("topic_counts",{}))
             for article in news.get("articles",[])[:20]:
-                with st.expander(f"{article['domain']} · {article['topic']} · provider seen {article['provider_seen_at']}"):
+                with st.expander(f"{article['domain']} · {article['topic']} · provider time {article['provider_seen_at']}"):
                     st.text(article["title"])
-                    st.caption(f"Bot first saw: {article['first_seen_at']} · publication time unavailable · {', '.join(article['tags']) or 'No event keywords'}")
+                    st.caption(f"Bot first saw: {article['first_seen_at']} · publication {article.get('publication_at') or 'unavailable'} · {', '.join(article['tags']) or 'No event keywords'}")
                     st.link_button("Read original source",article["url"])
             st.download_button("Download archived news snapshot",json.dumps(news,indent=2),"news_research.json","application/json")
             st.markdown("**Shell: buy and hold versus staged entries**")
