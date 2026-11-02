@@ -112,16 +112,18 @@ def holding_diagnostics(holdings,data,fxdata,equity):
               "momentum_12_minus_1_pct":100*(values[-22]/values[-253]-1) if len(values)>=253 else None}
         panel.append(item)
         if h.get("history_eligible") and len(values)>=127:
-            usable[s]={d:p[d]/p[dates[i-1]]-1 for i,d in enumerate(dates) if i}
+            usable[s]=p
             weights[s]=weights.get(s,0)+max(0,h["value_usd"])/equity if equity>0 else 0
     covered=sum(weights.values())*equity
     risk={"status":"INSUFFICIENT_COVERAGE","holding_value_coverage_pct":100*covered/total if total else 100,
           "note":"Current holdings/current weights historical proxy; excludes costs, funding, dividends and unavailable/short/leveraged exposures. UK returns include daily GBPUSD changes. Not actual account history."}
     if not usable:return {"holdings":panel,"risk":risk}
-    days=sorted(set.intersection(*(set(v) for v in usable.values())))[-252:]
+    common=sorted(set.intersection(*(set(v) for v in usable.values())))[-253:]
+    days=common[1:]
     if len(days)<126 or (total and covered/total<.95):
         return {"holdings":panel,"risk":risk}
-    symbols=sorted(usable);series={s:[usable[s][d] for d in days] for s in symbols}
+    symbols=sorted(usable)
+    series={s:[usable[s][b]/usable[s][a]-1 for a,b in zip(common,common[1:])] for s in symbols}
     sigma={(a,b):covariance(series[a],series[b])*(1 if a==b else .9) for a in symbols for b in symbols}
     variance_port=sum(weights[a]*weights[b]*sigma[a,b] for a in symbols for b in symbols)
     contributions=[{"symbol":a,"weight_pct":weights[a]*100,
@@ -131,11 +133,11 @@ def holding_diagnostics(holdings,data,fxdata,equity):
         for b in symbols[i+1:]:
             denom=math.sqrt(variance(series[a])*variance(series[b]))
             if denom:correlations.append({"a":a,"b":b,"correlation":covariance(series[a],series[b])/denom})
-    proxy=[sum(weights[s]*usable[s][d] for s in symbols) for d in days]
+    proxy=[sum(weights[s]*series[s][i] for s in symbols) for i in range(len(days))]
     risk.update(status="CURRENT_HOLDINGS_PROXY",samples=len(days),
                 annual_volatility_pct=100*math.sqrt(max(0,variance_port)*252),
                 variance_contributions=contributions,
                 correlations=sorted(correlations,key=lambda r:abs(r["correlation"]),reverse=True)[:10],
                 garch=garch_grid(proxy),shrinkage="10% off-diagonal shrinkage toward diagonal",
-                calendar="252 aligned trading observations; mixed crypto/equity weekends excluded.")
+                calendar="252 common-date return observations, aligned before differencing. Local exchange closes differ; mixed crypto/equity weekends excluded.")
     return {"holdings":panel,"risk":risk}
