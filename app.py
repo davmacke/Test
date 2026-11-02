@@ -36,6 +36,16 @@ MAX_POSITION_PCT = max(0.0, float(os.getenv("MAX_POSITION_PCT", "5")))
 st.set_page_config(page_title="eToro Market & Risk Analyst", layout="wide")
 st.title("eToro Market & Portfolio Analyst")
 st.caption("Multi-asset market signals · Portfolio risk checks · Demo-only automatic trading")
+with st.expander("Operating costs and break-even", expanded=True):
+    cost_a,cost_b = st.columns(2)
+    monthly_operating_cost = cost_a.number_input("Monthly ChatGPT + Render cost (£)",min_value=0.0,value=32.0,step=1.0,key="monthly-operating-cost")
+    planned_capital = cost_b.number_input("Illustrative real starting capital (£)",min_value=10.0,value=1250.0,step=50.0,key="planned-real-capital")
+    c1,c2,c3 = st.columns(3)
+    c1.metric("Monthly operating cost",f"£{monthly_operating_cost:.2f}")
+    c2.metric("Monthly trading return needed to cover cost",f"{100*monthly_operating_cost/planned_capital:.2f}%")
+    c3.metric("Annual operating cost",f"£{12*monthly_operating_cost:.2f}")
+    st.caption("User-provided subscription costs and illustrative capital, not the demo account balance. The required return is after trading costs and before tax. Demo profit cannot pay subscriptions. No strategy has yet demonstrated reliable coverage of these costs.")
+
 
 if not os.getenv("ETORO_API_KEY") or not os.getenv("ETORO_USER_KEY"):
     st.error("Set ETORO_API_KEY and ETORO_USER_KEY in your hosting provider's environment settings.")
@@ -835,7 +845,7 @@ with backtest_tab:
                 if report.get("sterling"):
                     sterling=report["sterling"]
                     st.caption(f"Sterling scenario: £{sterling['initial_gbp']:,.2f} initial capital · "
-                               f"£{sterling['target_gbp']:g} target · GBPUSD {sterling['gbpusd']:.5f} "
+                               f"£{sterling['target_gbp']:g} historical weekly target · GBPUSD {sterling['gbpusd']:.5f} "
                                f"at {sterling['rate_date']}. Constant FX conversion; no currency-cost reconstruction.")
                 summaries = pd.DataFrame(report["summaries"])
                 for window, label in [("latest_25pct", "Latest 25% · separate evaluation"),
@@ -875,7 +885,7 @@ with research_tab:
     st.subheader("Three-strategy research · £1,250")
     st.caption("Independent simulated accounts for filtered mean reversion, cointegrated pairs and a "
                "walk-forward neural network. These strategies do not submit broker orders. "
-               "The 10% monthly return and £25 withdrawal targets are measured, not promised.")
+               "Stored results retain the original 10% monthly and £25 withdrawal assumptions. Current operating costs are assessed separately below.")
     if research_folder is None:
         st.info("No three-strategy research run has been configured.")
     else:
@@ -907,9 +917,13 @@ with research_tab:
                                      ("earlier_75pct","Earlier historical comparison")]:
                     st.markdown(f"**{label}**")
                     st.dataframe(overview[overview["window"] == window], use_container_width=True, hide_index=True)
-                monthly_rows = [{"Comparison": key, **month}
+                monthly_rows = [{"Comparison": key, **month,
+                                 "Current monthly operating cost GBP": monthly_operating_cost,
+                                 "Marked monthly profit after operating cost GBP": round(float(month.get("profit_gbp",0))-monthly_operating_cost,2),
+                                 "Full-month marked profit covers current cost": (float(month.get("profit_gbp",0))>=monthly_operating_cost) if not month.get("partial",False) else None}
                                 for key, rows in study["monthly"].items() for month in rows]
                 st.markdown("**Monthly returns and simulated profit withdrawals**")
+                st.caption("Current-cost columns subtract the monthly operating cost selected above from marked monthly profit. This can include unrealized gains and does not establish cash available to withdraw. Partial months do not count as coverage. Historical £25 withdrawal simulations are preserved.")
                 st.dataframe(pd.DataFrame(monthly_rows), use_container_width=True, hide_index=True)
                 st.markdown("**SPY buy-and-hold · fully invested, no withdrawals**")
                 st.dataframe(pd.DataFrame(study["benchmarks"]), use_container_width=True, hide_index=True)
