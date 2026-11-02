@@ -1,5 +1,6 @@
 from math import sqrt
 import pandas as pd
+from broker_accounting import totals
 
 
 def analyze_candles(candles, current_price=None, equity=0.0,
@@ -146,7 +147,9 @@ def portfolio_risk(portfolio, instrument_classes=None):
         cash = float(client.get("credit") or 0)
     except (TypeError, ValueError):
         cash = 0.0
-    equity_estimate = max(0.0, cash + total_capital)
+    account = totals(portfolio)
+    cash = account["cash_usd"]
+    equity_estimate = max(0.0, account["equity_usd"])
     largest_position = max((row["capital_usd"] for row in rows), default=0.0)
     largest_weight = (largest_position / equity_estimate * 100) if equity_estimate else 0.0
     class_weights = {
@@ -172,6 +175,8 @@ def portfolio_risk(portfolio, instrument_classes=None):
         "positions": rows, "position_count": len(rows),
         "cash_usd": cash, "invested_capital_usd": total_capital,
         "estimated_account_value_usd": equity_estimate,
+        "broker_reserved_usd": account["broker_reserved_usd"],
+        "unrealized_pnl_usd": account["unrealized_pnl_usd"],
         "estimated_gross_exposure_usd": gross_exposure,
         "leverage_multiple": (gross_exposure / equity_estimate) if equity_estimate else 0.0,
         "largest_position_pct": largest_weight,

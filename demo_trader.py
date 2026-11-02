@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from analysis import portfolio_risk
+from broker_accounting import position_pnl, unreflected_reserve, totals
 from sector_rotation import STRATEGY as ROTATION_STRATEGY, plan_rotation_entry
 from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
 from data_quality import quote_problem, market_problem, utc_timestamp, uk_price_problem
@@ -32,10 +33,7 @@ def _id(row, *keys):
 
 
 def _pnl(position):
-    for key in ("pnL", "pnl", "PnL", "unrealizedPnL"):
-        if position.get(key) is not None:
-            return _float(position[key], 0.0)
-    return 0.0
+    return position_pnl(position)
 
 
 def _flag(value):
@@ -304,7 +302,8 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     if mode != "demo":
         return {"status": "BLOCKED", "message": "Order execution is hard-locked to demo mode."}
 
-    if _execution_check_token():
+    use_all_cash = os.getenv("DEMO_USE_ALL_AVAILABLE_CASH", "false").strip().lower() in {"1","true","yes"}
+    if _execution_check_token() or use_all_cash:
         portfolio = feed.fetch_portfolio("demo")
     client = (portfolio or {}).get("clientPortfolio") or {}
     if not client:
@@ -385,13 +384,26 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
     _sync_orders(connection, feed, portfolio, log)
     state = connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
     rows = connection.execute("SELECT * FROM demo_bot_orders WHERE run_key=? ORDER BY id", (run_key,)).fetchall()
-    available_cash = max(0.0, _float(risk.get("cash_usd"), 0.0))
+    all_bot_rows = connection.execute("SELECT * FROM demo_bot_orders").fetchall()
+    unresolved_cash = unreflected_reserve(all_bot_rows, portfolio)
+    available_cash = max(0.0, _float(risk.get("cash_usd"), 0.0) - unresolved_cash)
     budget_locked = any(
         row["action"] == "open"
         and row["status"] not in {"REJECTED", "CANCELLED", "CANCELED", "EXPIRED"}
         for row in rows
     )
-    if not budget_locked:
+    if use_all_cash:
+        committed_cash = sum(_float(r["amount_usd"]) for r in rows
+                             if r["action"]=="open" and r["status"] in ACTIVE_ORDER_STATES)
+        cash_budget = committed_cash + available_cash
+        if abs(cash_budget - _float(state["cash_budget_usd"])) > .01:
+            print("DEMO_CASH_ACCESS " + json.dumps({"mode":"ALL_AVAILABLE_DEMO_CASH","run_key":run_key,
+                  "free_cash_usd":available_cash,"committed_usd":committed_cash,"budget_usd":cash_budget,
+                  "unreflected_reserve_usd":unresolved_cash}), flush=True)
+        connection.execute("UPDATE demo_bot_state SET cash_budget_usd=? WHERE id=1",(cash_budget,))
+        connection.commit()
+        state=connection.execute("SELECT * FROM demo_bot_state WHERE id=1").fetchone()
+    elif not budget_locked:
         cash_budget = available_cash
         connection.execute(
             "UPDATE demo_bot_state SET cash_budget_usd=? WHERE id=1",
@@ -625,6 +637,8 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
         "orders": [{k: r[k] for k in ("symbol", "strategy", "run_key", "status", "amount_usd", "order_id", "position_id", "entry_price", "stop_rate", "target_rate", "pnl")} for r in rows],
     }), flush=True)
     return {
+        "account_equity_usd": totals(portfolio)["equity_usd"],
+        "account_unrealized_pnl_usd": totals(portfolio)["unrealized_pnl_usd"],
         "entry_decisions": decisions,
         "run_key": state["run_key"],
         "status": state["status"],
