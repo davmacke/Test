@@ -1,0 +1,72 @@
+[
+  {
+    "id": "almgren_chriss",
+    "paper": "Almgren & Chriss (2000), Optimal Execution of Portfolio Transactions",
+    "status": "EXECUTION_DIAGNOSTIC",
+    "application": "Reconstruct decision-mid to broker-fill basis points from stored quotes. This measures execution quality including spread; it does not fit market impact or implement institutional TWAP/VWAP without depth/volume data.",
+    "source": "https://www.smallake.kr/wp-content/uploads/2016/03/optliq.pdf"
+  },
+  {
+    "id": "engle",
+    "paper": "Engle (1982), Autoregressive Conditional Heteroscedasticity...",
+    "status": "RISK_DIAGNOSTIC",
+    "application": "Treat volatility as time-varying; compare current conditional risk with sample volatility. No constant-volatility assumption is used to promise returns.",
+    "source": "https://web.pdx.edu/~crkl/ec572/readings/Engle82.pdf"
+  },
+  {
+    "id": "fama_french",
+    "paper": "Fama & French (1992); Common Risk Factors (1993)",
+    "status": "FACTOR_ATTRIBUTION_DEFERRED",
+    "application": "The cited1992 cross-sectional study precedes the1993 three-factor model. A full factor regression needs validated factor series and sufficient account history; no alpha estimate is fabricated.",
+    "source": "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library/f-f_factors.html"
+  },
+  {
+    "id": "gatheral",
+    "paper": "Gatheral SVI; Gatheral & Jacquier (2014), Arbitrage-free SVI volatility surfaces",
+    "status": "OPTIONS_DATA_REQUIRED",
+    "application": "SVI fitting alone does not ensure an arbitrage-free surface. Explicit restrictions and liquid option-chain prices are needed. The present bot trades underlying assets, so no SVI trading model is enabled.",
+    "source": "https://arxiv.org/abs/1204.0646"
+  },
+  {
+    "id": "avellaneda_stoikov",
+    "paper": "Avellaneda & Stoikov (2008), High-frequency trading in a limit order book",
+    "status": "ORDER_BOOK_DATA_REQUIRED",
+    "application": "Inventory-aware market making requires limit-order-book, queue and latency information. Broker snapshot quotes are insufficient; this evaluator does not claim high-frequency market-making capability.",
+    "source": "https://www.math.nyu.edu/~avellane/HighFrequencyTrading.pdf"
+  },
+  {
+    "id": "kyle",
+    "paper": "Kyle (1985), Continuous Auctions and Insider Trading",
+    "status": "SIGNED_ORDER_FLOW_REQUIRED",
+    "application": "The original title uses Insider Trading. Kyle lambda cannot be identified from these daily candles alone; signed order flow and price-impact data are required.",
+    "source": "https://doi.org/10.2307/1913210"
+  },
+  {
+    "id": "sharpe",
+    "paper": "Sharpe (1966), Mutual Fund Performance",
+    "status": "TRACKING_HISTORY_REQUIRED",
+    "application": "Compute excess-return Sharpe only after60 complete daily returns, using dated USD cash proxies and365 calendar-day annualization. Do not annualize a few hours of performance.",
+    "source": "https://doi.org/10.1086/294846"
+  },
+  {
+    "id": "markowitz",
+    "paper": "Markowitz (1952), Portfolio Selection",
+    "status": "COVARIANCE_DIAGNOSTIC",
+    "application": "Report current-holdings correlations and covariance risk contributions with10% diagonal shrinkage, aligned USD returns and coverage checks. No unstable mean-variance expected-return optimizer controls trades.",
+    "source": "https://doi.org/10.1111/j.1540-6261.1952.tb01525.x"
+  },
+  {
+    "id": "bollerslev",
+    "paper": "Bollerslev (1986), Generalized Autoregressive Conditional Heteroskedasticity",
+    "status": "DESCRIPTIVE_GARCH",
+    "application": "Fit a stationary GARCH(1,1) finite parameter grid to at least126 current-holdings proxy returns. Display conditional volatility and a normal-model tail scenario; this is not an out-of-sample validated loss limit.",
+    "source": "https://doi.org/10.1016/0304-4076(86)90063-1"
+  },
+  {
+    "id": "carhart",
+    "paper": "Carhart (1997), On Persistence in Mutual Fund Performance",
+    "status": "MOMENTUM_DIAGNOSTIC",
+    "application": "Show12-minus1-month momentum where253 observations exist. This is not a full four-factor regression, proof of manager skill, or evidence of a dependable monthly return.",
+    "source": "https://doi.org/10.1111/j.1540-6261.1997.tb03808.x"
+  }
+]
