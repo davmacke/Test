@@ -17,6 +17,7 @@ from analysis import analyze_candles, portfolio_risk
 from bollinger_rsi import analyze_bollinger_rsi, completed_daily_candles
 from sector_rotation import analyze_rotation, SUPPORTED as ROTATION_SYMBOLS
 from data_quality import quote_problem, age_seconds
+from trade_approval import PRIORITY as APPROVAL_PRIORITY
 from demo_trader import run_demo_cycle
 from etoro_feed import EtoroFeed, DEFAULT_SYMBOLS, UK_SYMBOLS
 
@@ -204,7 +205,7 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
             stale.append(symbol)
             continue
         try:
-            if row["status"] == "ok" and ("bollinger_rsi" not in json.loads(row["payload"]) or
+            if row["status"] == "ok" and ("approval_history" not in json.loads(row["payload"]) or "bollinger_rsi" not in json.loads(row["payload"]) or
                     (symbol in (*ROTATION_SYMBOLS, "SPY") and "rotation_history" not in json.loads(row["payload"]))):
                 stale.append(symbol)
                 continue
@@ -215,7 +216,7 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
         except (TypeError, ValueError, json.JSONDecodeError):
             stale.append(symbol)
 
-    stale.sort(key=lambda symbol: (symbol not in UK_SYMBOLS, symbol in cache_rows))
+    stale.sort(key=lambda symbol: (symbol not in APPROVAL_PRIORITY, symbol not in UK_SYMBOLS, symbol in cache_rows))
     for symbol in stale[:CANDLES_PER_CYCLE]:
         instrument_id = mapping[symbol]["instrument_id"]
         try:
@@ -231,6 +232,7 @@ def refresh_analysis(connection, feed, mapping, latest_prices, equity):
                 candles, current_price=latest_prices.get(symbol), equity=equity,
                 risk_per_trade_pct=RISK_PER_TRADE_PCT, max_position_pct=MAX_POSITION_PCT,
             )
+            result["approval_history"] = completed_daily_candles(candles, now)[-100:]
             if symbol in UK_SYMBOLS:
                 completed = completed_daily_candles(candles, now)
                 reference = completed[-1]["close"] if completed else None
@@ -763,6 +765,15 @@ with bot_tab:
         cycle_age = age_seconds(demo_row["fetched_at"])
         if cycle_age is None or cycle_age > max(POLL * 4, 180):
             st.warning("Bot status is stale. Check recent service events before assuming it is still evaluating entries.")
+    st.markdown("**Independent trade approval**")
+    st.caption("Every new strategy entry needs APPROVED from a separate rules-based reviewer. WAIT and VETO prevent buys; exits and broker stops remain active. These experimental thresholds have not yet demonstrated better returns.")
+    st.caption("Daily filters: instrument fall ≥2% in one session or ≥5% in five, a lower low on a down day, or price below a declining 50-day average. Regional benchmark falls ≥1.5% daily/intraday or ≥3% over five sessions block entries. Weak breadth and applicable sector deterioration also veto. Missing/stale data means WAIT.")
+    approval = bot_status.get("market_approval") or {}
+    st.caption(f"Approval version: {approval.get('version', 'waiting')} · evaluated {approval.get('evaluated_at', 'not yet')}")
+    heat = approval.get("heatmap", [])
+    if heat:
+        st.dataframe(pd.DataFrame(heat).style.map(lambda value: "background-color: #6b2424; color: white" if isinstance(value, (int,float)) and value < 0 else ("background-color: #205736; color: white" if isinstance(value, (int,float)) and value > 0 else ""), subset=["Daily %", "Five sessions %"]), use_container_width=True, hide_index=True)
+    st.caption("Heat map uses completed eToro daily candles and shows each date. Sector ETFs are a participation proxy, not the full S&P 500 constituent heat map. UK and crypto use their own tracked baskets. Instrument-only checks apply to supported commodities/FX; unmapped assets wait. Headlines do not approve orders.")
     if bot_status.get("entry_decisions"):
         st.markdown("**Entry decisions from the last cycle**")
         st.dataframe(pd.DataFrame(bot_status["entry_decisions"]), use_container_width=True, hide_index=True)

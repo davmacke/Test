@@ -52,7 +52,7 @@ class UKMarketTests(unittest.TestCase):
             fresh=dict(harness.FRESH,instrument_id=2,asset_class='Stocks')
             feed.resolve_symbols=lambda symbols:{'RR.L':fresh}
             quote=dict(harness.QUOTE,symbol='RR.L',instrument_id=2,bid=1432,ask=1434,last=1433)
-            with patch.dict(os.environ,{'DEMO_AUTOTRADE_ENABLED':'true','ETORO_TRADING_MODE':'demo','DEMO_EXECUTION_CHECK_ID':''}),patch.object(harness.bot,'_now',return_value=harness.NOW),contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ,{'DEMO_AUTOTRADE_ENABLED':'true','ETORO_TRADING_MODE':'demo','DEMO_EXECUTION_CHECK_ID':''}),patch.object(harness.bot,'_now',return_value=harness.NOW),patch.object(harness.bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 harness.bot.run_demo_cycle(c,feed,{'RR.L':fresh},[quote],{'clientPortfolio':{'credit':1000,'positions':[]}},lambda *args:None)
             self.assertEqual(len(feed.orders),1)
             order=feed.orders[0]
@@ -81,7 +81,7 @@ class UKMarketTests(unittest.TestCase):
                     'DEMO_EXECUTION_CHECK_SYMBOL':'EZJ.L','DEMO_EZJ_BROKER_PROBE':'true','DEMO_RUN_ID':'ezj-test',
                     'DEMO_RUN_ENDS_AT':'','DEMO_EXECUTION_CHECK_CONTINUE':'false'}
             feed=ProbeFeed()
-            with patch.dict(os.environ,config),patch.object(harness.bot,'_now',return_value=now),contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ,config),patch.object(harness.bot,'_now',return_value=now),patch.object(harness.bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 harness.bot.run_demo_cycle(c,feed,{},[],feed.fetch_portfolio('demo'),lambda *a:None)
                 harness.bot._execution_check(c,feed,lambda *a:None)
             self.assertEqual(len(feed.orders),1)
@@ -90,7 +90,7 @@ class UKMarketTests(unittest.TestCase):
             self.assertEqual(feed.orders[0]['orderCurrency'],'usd')
             self.assertAlmostEqual(feed.orders[0]['stopLossRate'],95)
             # The same armed probe cannot bypass the real-mode lock.
-            with patch.dict(os.environ,{**config,'ETORO_TRADING_MODE':'real'}),contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ,{**config,'ETORO_TRADING_MODE':'real'}),patch.object(harness.bot, "approve_entry", return_value={"version":"isolated-test","status":"APPROVED","reasons":["Approval isolated in broker/sizing test"],"evaluated_at":"2026-11-02T15:00:00+00:00"}), contextlib.redirect_stdout(io.StringIO()):
                 result=harness.bot.run_demo_cycle(c,feed,{},[],{},lambda *a:None)
             self.assertEqual(result['status'],'BLOCKED')
             self.assertEqual(len(feed.orders),1)

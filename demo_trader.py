@@ -9,6 +9,7 @@ from sector_rotation import STRATEGY as ROTATION_STRATEGY, plan_rotation_entry
 from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
 from data_quality import quote_problem, market_problem, utc_timestamp, uk_price_problem
 from market_sessions import confirmed_market_status
+from trade_approval import context as approval_context, approve as approve_entry, audit as audit_approval, PRIORITY as APPROVAL_PRIORITY
 
 
 ACTIVE_ORDER_STATES = {"SUBMITTING", "UNKNOWN", "PENDING", "OPEN", "CLOSING", "CANCELLING"}
@@ -208,6 +209,10 @@ def _execution_check(connection, feed, log):
         raise RuntimeError("Execution check blocked: " + problem)
     if price <= 0 or bid <= 0 or (price - bid) / price > 0.02:
         raise RuntimeError("Execution check requires a usable quote")
+    review = approve_entry(symbol, meta, quotes[0], approval_context(connection, _now()), {q["symbol"]:q for q in quotes}, _now())
+    audit_approval(connection, symbol, "execution_check", review)
+    if review["status"] != "APPROVED":
+        raise RuntimeError("Execution check blocked by independent approval: " + "; ".join(review["reasons"]))
     fresh = feed.fetch_portfolio("demo")
     cash = _float((fresh.get("clientPortfolio") or {}).get("credit"))
     if cash < 10:
@@ -496,6 +501,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
             for position in (client.get("positions") or [])
         }
         quotes_by_symbol = {quote["symbol"]: quote for quote in quotes}
+        approval_data = approval_context(connection, _now())
 
         if (order_limit == 0 or len(opens) < order_limit) and (position_limit == 0 or len(active) < position_limit):
             for symbol, meta in mapping.items():
@@ -536,6 +542,19 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     "Buying enabled": fresh_meta.get("is_buy_enabled"),
                     "Tradable": fresh_meta.get("is_currently_tradable"),
                 }
+                if analysis.get("action") == "BUY CANDIDATE":
+                    try:
+                        approval = approve_entry(symbol, meta, quote, approval_data, quotes_by_symbol, _now())
+                    except Exception as error:
+                        approval = {"version": approval_data["version"], "status": "WAIT", "reasons": ["Approval evaluation failed: " + type(error).__name__], "evaluated_at": _now().isoformat()}
+                    audit_approval(connection, symbol, strategy, approval)
+                    decision["Approval"] = approval["status"]
+                    decision["Approval reason"] = "; ".join(approval["reasons"])
+                    decision["Approval benchmark"] = approval.get("benchmark")
+                    print("DEMO_APPROVAL " + json.dumps({"symbol":symbol,"strategy":strategy,**approval}), flush=True)
+                    if approval["status"] != "APPROVED" and not reason:
+                        reason = "Approval " + approval["status"] + ": " + decision["Approval reason"]
+                        decision["Decision"] = reason
                 entry_decisions.append(decision)
                 if reason:
                     continue
@@ -624,6 +643,9 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
     client = (portfolio or {}).get("clientPortfolio") or {}
     current_unrealized = _float(client.get("unrealizedPnL", client.get("unrealisedPnL")), 0.0)
     current_realized = _float(client.get("closedPositionsNetProfit"), state["last_realized_pnl"])
+    approval = approval_context(connection, _now())
+    heatmap = [{"Symbol":s, "Candle date":approval["metrics"][s]["date"], "Daily %":round(approval["metrics"][s]["day_pct"],2), "Five sessions %":round(approval["metrics"][s]["five_day_pct"],2)} for s in APPROVAL_PRIORITY if s in approval["metrics"]]
+    approval_summary = {"version":approval["version"], "evaluated_at":approval["evaluated_at"], "heatmap":heatmap, "unavailable":{s:approval["unavailable"].get(s,"Not loaded") for s in APPROVAL_PRIORITY if s not in approval["metrics"]}}
     decisions = decisions or []
     counts = {}
     for decision in decisions:
@@ -632,6 +654,7 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
     print("DEMO_BOT_STATUS " + json.dumps({
         "status": state["status"], "run_key": state["run_key"],
         "started_at": state["started_at"], "ends_at": state["ends_at"],
+        "market_approval": approval_summary,
         "bot_open_pnl": bot_pnl, "decision_counts": counts,
         "candidate_checks": [d for d in decisions if d.get("Signal") == "BUY CANDIDATE"],
         "orders": [{k: r[k] for k in ("symbol", "strategy", "run_key", "status", "amount_usd", "order_id", "position_id", "entry_price", "stop_rate", "target_rate", "pnl")} for r in rows],
@@ -639,6 +662,7 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
     return {
         "account_equity_usd": totals(portfolio)["equity_usd"],
         "account_unrealized_pnl_usd": totals(portfolio)["unrealized_pnl_usd"],
+        "market_approval": approval_summary,
         "entry_decisions": decisions,
         "run_key": state["run_key"],
         "status": state["status"],
