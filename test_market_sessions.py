@@ -21,6 +21,8 @@ class SessionTests(unittest.TestCase):
         self.assertFalse(ms.session('OXY',utc('2026-11-02T14:29:59Z'))['is_open'])
         self.assertTrue(ms.session('OXY',utc('2026-11-02T14:30:00Z'))['is_open'])
         self.assertFalse(ms.session('OXY',utc('2026-11-02T21:00:00Z'))['is_open'])
+        self.assertFalse(ms.session('SHEL.L',utc('2026-11-02T12:01:00Z'))['is_open'])
+        self.assertTrue(ms.session('SHEL.L',utc('2026-11-02T12:03:00Z'))['is_open'])
     def test_holidays_weekends_early_closes_and_expiry(self):
         for s,d in [('SHEL.L','2026-12-25T10:00:00Z'),('SHEL.L','2026-12-28T10:00:00Z'),
                     ('SHEL.L','2027-03-29T10:00:00Z'),('OXY','2026-11-26T16:00:00Z'),

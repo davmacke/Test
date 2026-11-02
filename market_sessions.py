@@ -36,7 +36,10 @@ def session(symbol,now):
         return dict(result,reason="Exchange calendar holiday or weekend")
     opening=datetime.combine(day,time.fromisoformat(cfg["open"]),zone)
     closing=datetime.combine(day,time.fromisoformat(cfg["early"].get(day.isoformat(),cfg["close"])),zone)
-    return dict(result,is_open=opening<=local<closing,reason="Regular equity session",
+    # Conservative pause covers the scheduled London midday auction plus a one-minute buffer.
+    in_auction = code=="XLON" and time(12,0)<=local.time()<time(12,3)
+    return dict(result,is_open=opening<=local<closing and not in_auction,
+                reason="London midday auction buffer" if in_auction else "Regular equity session",
                 opens_at=opening.astimezone(timezone.utc).isoformat(),closes_at=closing.astimezone(timezone.utc).isoformat())
 
 def confirmed_market_status(symbol,meta,quote,now,mode="demo"):
