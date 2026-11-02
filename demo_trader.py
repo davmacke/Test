@@ -7,6 +7,7 @@ from analysis import portfolio_risk
 from sector_rotation import STRATEGY as ROTATION_STRATEGY, plan_rotation_entry
 from bollinger_rsi import STRATEGY as BB_STRATEGY, plan_bollinger_entry
 from data_quality import quote_problem, market_problem, utc_timestamp, uk_price_problem
+from market_sessions import confirmed_market_status
 
 
 ACTIVE_ORDER_STATES = {"SUBMITTING", "UNKNOWN", "PENDING", "OPEN", "CLOSING", "CANCELLING"}
@@ -289,8 +290,9 @@ def _evaluate_entry(feed, symbol, meta, quote, analysis):
     if not fresh or fresh.get("instrument_id") != meta.get("instrument_id"):
         return "Market status refresh returned no matching instrument", {}
     now = _now()
-    reason = (market_problem(fresh, now) or quote_problem(quote, now)
-              or uk_price_problem(symbol, quote, analysis.get("uk_reference_close")))
+    reason, fresh = confirmed_market_status(symbol, fresh, quote, now,
+                                            os.getenv("ETORO_TRADING_MODE", "demo").strip().lower())
+    reason = reason or quote_problem(quote, now) or uk_price_problem(symbol, quote, analysis.get("uk_reference_close"))
     return reason, fresh
 
 
@@ -517,6 +519,8 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
                     "Status checked": fresh_meta.get("status_checked_at"),
                     "Market open": fresh_meta.get("is_open"),
                     "Open status source": fresh_meta.get("open_status_source", "unavailable"),
+                    "Broker reported market open": fresh_meta.get("broker_reported_open", fresh_meta.get("is_open")),
+                    "Calendar session": fresh_meta.get("calendar_session"),
                     "Buying enabled": fresh_meta.get("is_buy_enabled"),
                     "Tradable": fresh_meta.get("is_currently_tradable"),
                 }
@@ -602,7 +606,7 @@ def run_demo_cycle(connection, feed, mapping, quotes, portfolio, log):
 
 def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
     rows = connection.execute(
-        "SELECT symbol,run_key,strategy,signal_candle,action,status,amount_usd,entry_price,stop_rate,target_rate,position_id,pnl,message,created_at "
+        "SELECT symbol,run_key,strategy,signal_candle,action,status,amount_usd,order_id,entry_price,stop_rate,target_rate,position_id,pnl,message,created_at "
         "FROM demo_bot_orders ORDER BY id DESC"
     ).fetchall()
     client = (portfolio or {}).get("clientPortfolio") or {}
@@ -618,7 +622,7 @@ def _snapshot(connection, portfolio, state, bot_pnl, decisions=None):
         "started_at": state["started_at"], "ends_at": state["ends_at"],
         "bot_open_pnl": bot_pnl, "decision_counts": counts,
         "candidate_checks": [d for d in decisions if d.get("Signal") == "BUY CANDIDATE"],
-        "orders": [{"symbol": r["symbol"], "strategy": r["strategy"], "run_key": r["run_key"], "status": r["status"]} for r in rows],
+        "orders": [{k: r[k] for k in ("symbol", "strategy", "run_key", "status", "amount_usd", "order_id", "position_id", "entry_price", "stop_rate", "target_rate", "pnl")} for r in rows],
     }), flush=True)
     return {
         "entry_decisions": decisions,
