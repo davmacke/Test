@@ -83,6 +83,12 @@ class ParserTests(unittest.TestCase):
   f=Fetcher(['example.com'],0)
   with patch.object(f,'raw',return_value=('User-agent: GPTBot\nDisallow: /property/', 'text/plain')):
    with self.assertRaisesRegex(ValueError,'crawl rules'):f.get('https://example.com/property/1')
+ def test_search_query_preserved_and_relative_base(self):
+  with patch('collector.socket.getaddrinfo',return_value=[(2,1,6,'',('93.184.216.34',443))]):
+   self.assertEqual(public_url('https://example.com/properties/?propind=S',['example.com']),'https://example.com/properties/?propind=S')
+  fake=type('Fake',(),{'get':lambda self,url:'<base href="https://example.com/"><a href="property/123/a-house/">House</a>'})()
+  urls,errors=discover(fake,dict(discovery_urls=['https://example.com/properties/?propind=S'],listing_pattern='^/property/',domains=['example.com']))
+  self.assertEqual(urls,['https://example.com/property/123/a-house/'])
 
 class PersistenceTests(unittest.TestCase):
  def test_change_history_and_restart(self):

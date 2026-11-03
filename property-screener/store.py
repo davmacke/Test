@@ -63,6 +63,13 @@ class Store:
         with self.connect() as db:return [dict(r) for r in db.execute('SELECT * FROM scans ORDER BY id DESC LIMIT 20')]
     def checked_urls(self):
         with self.connect() as db:return dict(db.execute('SELECT url,checked FROM url_checks').fetchall())
+    def rekey(self,old,new):
+        p=self.listing(old)
+        if not p or self.listing(new):return
+        p['url']=new
+        with self.connect() as db:
+            db.execute('UPDATE listings SET url=?,payload=? WHERE url=?',(new,json.dumps(p),old))
+            db.execute('UPDATE changes SET url=? WHERE url=?',(new,old))
     def mark_checked(self,url):
         with self.connect() as db:db.execute('INSERT INTO url_checks VALUES(?,?) ON CONFLICT(url) DO UPDATE SET checked=excluded.checked',(url,stamp()))
     def start_scan(self):

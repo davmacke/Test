@@ -1,6 +1,6 @@
 [
  {"name":"JW Wood · North East England","enabled":true,"country":"England","domains":["jww.co.uk"],"listing_pattern":"^/buy/[A-Z0-9]+/?$","discovery_urls":["https://www.jww.co.uk/sitemap.xml"],"seed_urls":["https://www.jww.co.uk/buy/BAO260319"],"delay":2},
- {"name":"Higson Homes · Hull","enabled":true,"country":"England","domains":["higsonhomes.co.uk"],"listing_pattern":"^/property/[0-9]+/","discovery_urls":["https://www.higsonhomes.co.uk/properties/"],"seed_urls":["https://www.higsonhomes.co.uk/property/2939/3-bed-terraced-house-to-let-vermont-villas-vermont-street-hull/"],"delay":2},
+ {"name":"Higson Homes · Hull","enabled":true,"country":"England","domains":["higsonhomes.co.uk"],"listing_pattern":"^/property/[0-9]+/","discovery_urls":["https://www.higsonhomes.co.uk/properties/?propind=S"],"seed_urls":["https://www.higsonhomes.co.uk/property/2939/3-bed-terraced-house-to-let-vermont-villas-vermont-street-hull/"],"delay":2},
  {"name":"Reeds Rains","enabled":false,"domains":["reedsrains.co.uk"],"listing_pattern":"^/property/","reason":"robots.txt restricts GPTBot property access. Historical research retained; no automatic refresh without a permitted feed or agent permission."},
  {"name":"Rightmove / Zoopla / OnTheMarket","enabled":false,"domains":["rightmove.co.uk","zoopla.co.uk","onthemarket.com"],"listing_pattern":".*","reason":"Listing links and existing research only. No portal scraping adapter; use an authorised feed or enter reviewed facts."}
 ]

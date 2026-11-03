@@ -24,11 +24,13 @@ def canonical(url):
 def host_match(host,allowed):return any(host==h or host.endswith('.'+h) for h in allowed)
 
 def public_url(url,allowed):
+    query=urlsplit(url).query
     url=canonical(url); host=urlsplit(url).hostname
     if not host_match(host,allowed):raise ValueError('URL is outside configured estate-agent domains')
     addresses=socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)
     if not addresses or any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses):raise ValueError('Private network addresses are not allowed')
-    return url
+    clean=urlsplit(url)
+    return urlunsplit((clean.scheme,clean.netloc,clean.path,query,''))
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,*args):return None
@@ -75,9 +77,10 @@ class Fetcher:
 
 class Page(HTMLParser):
     def __init__(self):
-        super().__init__(convert_charrefs=True);self.parts=[];self.headings=[];self.links=[];self.ld=[];self.meta={};self.skip=0;self.script=None;self.h=0;self.heading=[]
+        super().__init__(convert_charrefs=True);self.parts=[];self.headings=[];self.links=[];self.ld=[];self.meta={};self.skip=0;self.script=None;self.h=0;self.heading=[];self.base=None
     def handle_starttag(self,tag,attrs):
         a=dict(attrs)
+        if tag=='base' and a.get('href'):self.base=a['href']
         if tag=='script':self.script=[] if a.get('type','').lower()=='application/ld+json' else None;self.skip+=1
         if tag in ('style','nav','footer','noscript'):self.skip+=1
         if tag in ('h1','h2'):self.h+=1;self.heading=[]
@@ -182,14 +185,15 @@ def discover(fetch,source,max_urls=2000):
         visited.add(url)
         try:text=fetch.get(url)
         except Exception as ex:errors.append(f'{url}: {type(ex).__name__}: {ex}');continue
+        link_base=url
         try:
             root=ET.fromstring(text)
             links=[x.text for x in root.iter() if x.tag.split('}')[-1]=='loc' and x.text]
             if root.tag.split('}')[-1]=='sitemapindex':queue.extend(links[:5]);continue
         except ET.ParseError:
-            page=Page();page.feed(text);links=page.links
+            page=Page();page.feed(text);links=page.links;link_base=urljoin(url,page.base) if page.base else url
         for link in links:
-            try:u=canonical(urljoin(url,link))
+            try:u=canonical(urljoin(link_base,link))
             except ValueError:continue
             if host_match(urlsplit(u).hostname,source['domains']) and pattern.search(urlsplit(u).path):out.add(u)
             if len(out)>=max_urls:break

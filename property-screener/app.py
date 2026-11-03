@@ -21,6 +21,7 @@ class Application:
         self.store=Store(Path(data_dir or os.getenv('DATA_DIR',ROOT/'data'))/'scout.sqlite3')
         self.sources=json.loads((ROOT/'sources.json').read_text(encoding='utf-8'))
         self.lock=threading.Lock();self.stop=threading.Event()
+        self.store.rekey('https://jww.co.uk/buy/BAO260319/print','https://www.jww.co.uk/buy/BAO260319')
         if not self.store.config('seed_imported',False):
             for p in json.loads((ROOT/'seed.json').read_text(encoding='utf-8')):self.store.upsert(p,at=p['observed_at'])
             self.store.set_config('seed_imported',True)

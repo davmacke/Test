@@ -26,6 +26,8 @@ python app.py
 
 Open http://127.0.0.1:8765. Eight research snapshots dated 2 November 2026 are imported once. They remain unverified and retain their original observation dates until a successful permitted page fetch. The web app binds to loopback without a password. For any public interface, set `SCOUT_PASSWORD`; username is `owner`. A missing password fails closed on public binding.
 
+For local background use on this Windows computer, run **Start Property Scout.cmd**. It starts a hidden local process and enables 12-hour scans. Use **Stop Property Scout.cmd** to stop that process; saved research remains. This installs no startup task: after reboot, start it again. It cannot scan while the computer is asleep/off or the process is stopped. Logs and the owned process ID are in `data/`. Do not open the local port to the internet.
+
 For a bounded command-line scan:
 
 ```
@@ -45,6 +47,8 @@ The collector checks robots before pages, honours relevant crawl delays, rejects
 Automated extraction is unverified: it does not infer market rent from a yield, assume a modern house is unlisted, or assume that a tenanted house meets a mortgage lender's condition requirements. Refurbishment may require a property already in lettable condition for a standard BTL mortgage. Bridging/refinancing and any future value uplift are not assumed.
 
 ## Render deployment
+
+The user chose **keep local for now** on 2 November 2026. No paid Render service has been created. The code is kept on a separate `property-scout` branch of `davmacke/Test`; the stock analyser's `master` branch and Render service are unchanged by this project.
 
 `render.yaml` defines one Python web service with a 1 GB persistent disk at `/var/data`, Frankfurt region, `0.5c-512mb` compute and a required password entered as a Render secret. Automatic deploys are off. Automatic scans are on only in this deployment configuration.
 
