@@ -96,7 +96,7 @@ def collect(c,get,now):
                 accepted+=1
             outcomes[topic]={"status":"OK" if accepted else "NO_MATCHES","received":len(articles),"accepted":accepted}
         except Exception as error:outcomes[topic]=error_info(error)
-    if not any(v["status"]=="OK" for v in outcomes.values()):
+    # Collect independent RSS feeds even when GDELT partially succeeds.\n    if True:
         for name,url in RSS_FEEDS.items():
             try:
                 response=get(url,timeout=15);response.raise_for_status();items=parse_rss(response.text);accepted=0
