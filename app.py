@@ -805,6 +805,18 @@ with bot_tab:
     pnl_a.metric("Bot open / last-seen P&L", f"{bot_status.get('bot_open_pnl', 0):,.2f} USD")
     pnl_b.metric("Demo account unrealized P&L", f"{bot_status.get('account_unrealized_pnl_usd', 0):,.2f} USD")
     pnl_c.metric("Demo account realized P&L change", f"{bot_status.get('account_realized_change', 0):,.2f} USD")
+    from monitoring import performance
+    current_run = bot_status.get("run_key")
+    audit = performance(demo_orders.to_dict("records"), current_run) if not demo_orders.empty else performance([], current_run)
+    st.markdown("**Verified trade ledger summary (current run)**")
+    k1,k2,k3,k4 = st.columns(4)
+    k1.metric("Filled orders", audit["filled"])
+    k2.metric("Closed with P&L", audit["closed_with_pnl"])
+    k3.metric("Win rate", f'{audit["win_rate_pct"]:.1f}%' if audit["win_rate_pct"] is not None else "N/A")
+    k4.metric("Closed P&L (USD)", f'{audit["realized_usd"]:,.2f}')
+    st.caption(audit["note"])
+    st.write("Strategy evidence:", audit["strategies"])
+    st.warning("Net after fees and maximum drawdown are not verified from the order ledger. Use the Growth evaluator equity curve for observed account drawdown.")
     st.caption("Account unrealized P&L includes all current demo positions. Realized P&L change includes all activity since the run began. The Growth evaluator records a new verified equity baseline.")
     if not demo_orders.empty:
         st.markdown("**Bot order log**")
@@ -1100,6 +1112,15 @@ with news_tab:
                 st.warning("News report is stale. Do not treat it as current coverage.")
             if news.get("status") != "TRACKING":
                 st.warning("No current validated news feed coverage. Failed or empty searches do not imply calm markets.")
+            from monitoring import alerts
+            held = {o.get("symbol") for o in bot_status.get("orders",[]) if o.get("status") in ("OPEN","CLOSING")}
+            flags = alerts(news.get("articles",[]), held)
+            st.markdown("**Breaking company-risk headline alerts (manual review only)**")
+            if flags:
+                st.dataframe(pd.DataFrame(flags),use_container_width=True,hide_index=True)
+            else:
+                st.info("No matching critical company headlines in the current archive. This is not proof that no event occurred.")
+            st.caption("Keyword matching is not independent verification; alerts never place orders or change stops.")
             st.write("Energy headline context:", news.get("energy_scenario"))
             st.caption("Diplomacy/conflict tags count words mentioned, including rumours, negations and quotes. They are not verified events, directional sentiment scores or buy signals.")
             st.dataframe(pd.DataFrame([{"Topic":k,**v} for k,v in news.get("sources",{}).items()]),use_container_width=True,hide_index=True)
