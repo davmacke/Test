@@ -128,8 +128,30 @@ def connect():
             id INTEGER PRIMARY KEY CHECK(id=1), fetched_at TEXT, payload TEXT
         )
     """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS account_equity_history(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL, mode TEXT NOT NULL, equity_usd REAL NOT NULL
+        )
+    """)
     connection.commit()
     return connection
+
+
+def record_account_equity(connection, portfolio, mode):
+    """Persist observed broker equity; never substitute a zero on failed reads."""
+    from analysis import totals
+    try:
+        equity = float(totals(portfolio)["equity_usd"])
+        if not (0 < equity < float("inf")):
+            return
+        connection.execute(
+            "INSERT INTO account_equity_history(ts,mode,equity_usd) VALUES(?,?,?)",
+            (datetime.now(timezone.utc).isoformat(), mode, equity),
+        )
+        connection.commit()
+    except (TypeError, ValueError, KeyError):
+        pass
 
 
 def log(connection, level, message):
@@ -193,6 +215,7 @@ def refresh_portfolio(connection, feed):
             "INSERT OR REPLACE INTO portfolio_cache(id,fetched_at,mode,status,payload) VALUES(1,?,?,?,?)",
             (datetime.now(timezone.utc).isoformat(), MODE, "ok", json.dumps(payload)),
         )
+        record_account_equity(connection, payload, MODE)
         log(connection, "INFO", f"Updated {MODE} portfolio snapshot")
     except Exception as error:
         connection.execute(
@@ -489,6 +512,10 @@ try:
     demo_row = connection.execute(
         "SELECT fetched_at,payload FROM demo_bot_snapshot WHERE id=1"
     ).fetchone()
+    equity_history = pd.read_sql_query(
+        "SELECT ts,mode,equity_usd FROM account_equity_history WHERE mode=? ORDER BY ts,id",
+        connection, params=(MODE,),
+    )
     demo_orders = pd.read_sql_query(
         "SELECT symbol,run_key,strategy,signal_candle,action,status,amount_usd,entry_price,stop_rate,target_rate,pnl,message,created_at "
         "FROM demo_bot_orders ORDER BY id DESC",
@@ -546,6 +573,48 @@ if portfolio_row and portfolio_row["status"] == "error":
     st.warning("The eToro portfolio read failed. Check API read scopes and Render logs.")
 elif not portfolio:
     st.info("No portfolio snapshot yet. Portfolio risk and account-based sizing appear after the eToro read succeeds.")
+
+st.subheader("Daily vs overall account performance")
+if MODE != "demo":
+    st.warning("Performance tracking is intended for demo mode; this view is not a live trading recommendation.")
+if equity_history.empty:
+    st.info("Waiting for the first successful broker equity snapshot. No P&L is inferred.")
+else:
+    history = equity_history.copy()
+    history["date_utc"] = pd.to_datetime(history["ts"], utc=True).dt.strftime("%Y-%m-%d")
+    daily = history.groupby("date_utc", sort=True).agg(
+        opening_usd=("equity_usd", "first"), closing_usd=("equity_usd", "last"),
+        observations=("equity_usd", "size")
+    ).reset_index()
+    daily["daily_change_usd"] = daily["closing_usd"] - daily["opening_usd"]
+    daily["daily_change_pct"] = 100 * daily["daily_change_usd"] / daily["opening_usd"]
+    first_equity = float(history.iloc[0]["equity_usd"])
+    latest_equity = float(history.iloc[-1]["equity_usd"])
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_rows = daily[daily["date_utc"] == today]
+    today_change = float(today_rows.iloc[-1]["daily_change_usd"]) if not today_rows.empty else None
+    today_pct = float(today_rows.iloc[-1]["daily_change_pct"]) if not today_rows.empty else None
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Latest observed demo equity", f"${latest_equity:,.2f}")
+    m2.metric("Today (UTC), first to latest snapshot",
+              f"${today_change:+,.2f}" if today_change is not None else "No observations",
+              f"{today_pct:+.2f}%" if today_pct is not None else None)
+    m3.metric("Overall since tracking began", f"${latest_equity-first_equity:+,.2f}",
+              f"{100*(latest_equity/first_equity-1):+.2f}%")
+    st.caption(f"Tracking began: {history.iloc[0]['ts']} UTC · Latest: {history.iloc[-1]['ts']} UTC. "
+               "Daily figures compare the first and latest observations of each UTC day, not necessarily market open/close.")
+    st.line_chart(history.set_index(pd.to_datetime(history["ts"], utc=True))["equity_usd"])
+    st.dataframe(daily.iloc[::-1].rename(columns={
+        "date_utc": "Date (UTC)", "opening_usd": "First equity USD",
+        "closing_usd": "Last equity USD", "daily_change_usd": "Change USD",
+        "daily_change_pct": "Change %", "observations": "Snapshots"
+    }), use_container_width=True, hide_index=True)
+    st.download_button("Download daily equity history (CSV)",
+                       daily.to_csv(index=False), file_name="demo-daily-equity.csv",
+                       mime="text/csv")
+    st.warning("These are changes in total demo-account equity, not verified bot-only trading profit. "
+               "Deposits, withdrawals, manual trades, fees, and other portfolio activity may affect changes. "
+               "Historical days before tracking began cannot be reconstructed here.")
 
 signals_tab, risk_tab, breadth_tab, feed_tab, bot_tab, backtest_tab, research_tab, copy_tab, growth_tab, news_tab, volatility_tab = st.tabs(
     ["Market signals", "Portfolio risk", "Breadth & sectors", "Feed status", "Demo bot", "Backtest", "Strategy research", "Disclosure followers", "Portfolio growth", "News & staged entries", "Volatility (GARCH)"]
